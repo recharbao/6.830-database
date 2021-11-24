@@ -9,6 +9,10 @@ import simpledb.transaction.TransactionId;
 
 import java.io.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,8 +42,15 @@ public class BufferPool {
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
+
+    // List<Page> _pgs;
+
+    Map<PageId, Page> _map;
+
     public BufferPool(int numPages) {
         // some code goes here
+        // _pgs = new ArrayList<>(numPages);
+        _map = new HashMap<>();
     }
     
     public static int getPageSize() {
@@ -74,7 +85,15 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+
+        if (_map.get(pid) == null) {
+            DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
+            Page pg = hf.readPage(pid);
+            _map.put(pid, pg);
+            return pg;
+        }else {
+            return _map.get(pid);
+        }
     }
 
     /**
