@@ -114,6 +114,7 @@ public class AggregateTest extends SimpleDbTestBase {
   @Test public void rewind() throws Exception {
     Aggregate op = new Aggregate(scan1, 1, 0,
         Aggregator.Op.MIN);
+    System.out.println("rewind uint test begin !");
     op.open();
     while (op.hasNext()) {
       assertNotNull(op.next());
@@ -122,6 +123,7 @@ public class AggregateTest extends SimpleDbTestBase {
 
     op.rewind();
     min.open();
+    System.out.println("rewind uint test end !");
     TestUtil.matchAllTuples(min, op);
   }
 
