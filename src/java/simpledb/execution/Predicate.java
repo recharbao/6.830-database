@@ -44,9 +44,13 @@ public class Predicate implements Serializable {
                 return "<>";
             throw new IllegalStateException("impossible to reach here");
         }
-
     }
-    
+
+    private int _field;
+
+    private Op _op;
+
+    private Field _operand;
     /**
      * Constructor.
      * 
@@ -59,6 +63,9 @@ public class Predicate implements Serializable {
      */
     public Predicate(int field, Op op, Field operand) {
         // some code goes here
+        _field = field;
+        _op = op;
+        _operand = operand;
     }
 
     /**
@@ -67,7 +74,7 @@ public class Predicate implements Serializable {
     public int getField()
     {
         // some code goes here
-        return -1;
+        return _field;
     }
 
     /**
@@ -76,7 +83,7 @@ public class Predicate implements Serializable {
     public Op getOp()
     {
         // some code goes here
-        return null;
+        return _op;
     }
     
     /**
@@ -85,7 +92,7 @@ public class Predicate implements Serializable {
     public Field getOperand()
     {
         // some code goes here
-        return null;
+        return _operand;
     }
     
     /**
@@ -100,7 +107,10 @@ public class Predicate implements Serializable {
      */
     public boolean filter(Tuple t) {
         // some code goes here
-        return false;
+
+        Field tf = t.getField(_field);
+
+        return tf.compare(_op, _operand);
     }
 
     /**
