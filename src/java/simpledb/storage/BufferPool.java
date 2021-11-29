@@ -45,12 +45,18 @@ public class BufferPool {
 
     // List<Page> _pgs;
 
-    Map<PageId, Page> _map;
+    // Map<PageId, Page> _map;
+    Map<Integer, Page> _map;
 
     public BufferPool(int numPages) {
         // some code goes here
         // _pgs = new ArrayList<>(numPages);
         _map = new HashMap<>();
+    }
+
+    private int hashCode(Integer tableId, Integer pn) {
+        String s = tableId + " " + pn;
+        return s.hashCode();
     }
     
     public static int getPageSize() {
@@ -86,13 +92,13 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
 
-        if (_map.get(pid) == null) {
+        if (_map.get(hashCode(pid.getTableId(), pid.getPageNumber())) == null) {
             DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page pg = hf.readPage(pid);
-            _map.put(pid, pg);
+            _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
-            return _map.get(pid);
+            return _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
         }
     }
 
@@ -158,6 +164,15 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile hf = Database.getCatalog().getDatabaseFile(tableId);
+        List<Page> pages = hf.insertTuple(tid, t);
+        for (int i = 0; i < pages.size(); i++) {
+            Page page = pages.get(i);
+            if (i > 0) {
+                page.markDirty(true, tid);
+            }
+            hf.writePage(page);
+        }
     }
 
     /**
@@ -177,6 +192,9 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile hf = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+        hf.deleteTuple(tid, t);
+
     }
 
     /**
