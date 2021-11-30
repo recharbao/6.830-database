@@ -109,6 +109,8 @@ public class SystemTestUtil {
     public static void matchTuples(DbFile f, TransactionId tid, List<List<Integer>> tuples)
             throws DbException, TransactionAbortedException {
         SeqScan scan = new SeqScan(tid, f.getId(), "");
+        scan.open();
+        scan.close();
         matchTuples(scan, tuples);
     }
 

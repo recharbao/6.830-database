@@ -204,31 +204,32 @@ class HeapFileIterator implements DbFileIterator {
 
     @Override
     public boolean hasNext() throws DbException, TransactionAbortedException {
-        if (_isOpen == true && (_pid < _numPages || _pid == _numPages && _tupleList.hasNext())) {
-            return true;
+        if ((_isOpen == true) && (_pid <= _numPages)) {
+            if (_tupleList.hasNext()) {
+                return true;
+            }else {
+                while (_pid <= _numPages) {
+                    HeapPage hp = (HeapPage) IteratorGetPage(_pid++);
+                    _tupleList = hp.iterator();
+                    if (_tupleList.hasNext()) {
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
 
     @Override
     public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
-
         if (!_isOpen) {
             throw new NoSuchElementException();
         }
 
-        if (_tupleList.hasNext()) {
+        if (hasNext()) {
             return _tupleList.next();
-        }else if (hasNext()) {
-            while (hasNext()) {
-                HeapPage hp = (HeapPage)IteratorGetPage(_pid++);
-                _tupleList =  hp.iterator();
-                if (_tupleList.hasNext()) {
-
-                    return _tupleList.next();
-                }
-            }
         }
+
         throw new NoSuchElementException();
     }
 

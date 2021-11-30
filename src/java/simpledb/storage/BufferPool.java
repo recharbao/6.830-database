@@ -193,8 +193,14 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         DbFile hf = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
-        hf.deleteTuple(tid, t);
-
+        List<Page> pages = hf.deleteTuple(tid, t);
+        for (int i = 0; i < pages.size(); i++) {
+            Page page = pages.get(i);
+            if (i > 0) {
+                page.markDirty(true, tid);
+            }
+            hf.writePage(page);
+        }
     }
 
     /**
