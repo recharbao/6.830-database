@@ -46,9 +46,12 @@ public class BufferPool {
     // List<Page> _pgs;
 
     // Map<PageId, Page> _map;
-    Map<Integer, Page> _map;
+    private Map<Integer, Page> _map;
+    private int _numPage;
+    private TransactionId _tid;
 
     public BufferPool(int numPages) {
+        _numPage = numPages;
         // some code goes here
         // _pgs = new ArrayList<>(numPages);
         _map = new HashMap<>();
@@ -91,10 +94,13 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
-
+        _tid = tid;
         if (_map.get(hashCode(pid.getTableId(), pid.getPageNumber())) == null) {
             DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page pg = hf.readPage(pid);
+            if (_map.size() >= _numPage) {
+                evictPage();
+            }
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
@@ -171,7 +177,8 @@ public class BufferPool {
             if (i > 0) {
                 page.markDirty(true, tid);
             }
-            hf.writePage(page);
+//            hf.writePage(page);
+            _map.put(hashCode(page.getId().getTableId(), page.getId().getPageNumber()), page);
         }
     }
 
@@ -199,7 +206,8 @@ public class BufferPool {
             if (i > 0) {
                 page.markDirty(true, tid);
             }
-            hf.writePage(page);
+//            hf.writePage(page);
+            _map.put(hashCode(page.getId().getTableId(), page.getId().getPageNumber()), page);
         }
     }
 
@@ -211,7 +219,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-
+        for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
+            flushPage(entry.getValue().getId());
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -225,6 +235,7 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        _map.remove(hashCode(pid.getTableId(), pid.getPageNumber()));
     }
 
     /**
@@ -234,6 +245,10 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        Page page = _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
+        page.markDirty(false, _tid);
+        DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        hf.writePage(page);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -250,6 +265,18 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-    }
+        // System.out.println("mapsize : " + _map.size());
+        for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
+            Integer key = entry.getKey();
+            Page page = entry.getValue();
+            try {
+                flushPage(page.getId());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
+            discardPage(page.getId());
+            break;
+        }
+    }
 }
