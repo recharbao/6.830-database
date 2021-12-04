@@ -90,7 +90,7 @@ public class IntHistogramTest {
 		h.addValue(3);
 		h.addValue(1);
 		h.addValue(10);
-		
+
 		// Be conservative in case of alternate implementations
 		Assert.assertTrue(h.estimateSelectivity(Op.GREATER_THAN, -1) > 0.999);
 		Assert.assertTrue(h.estimateSelectivity(Op.GREATER_THAN, 2) > 0.6);
@@ -130,7 +130,7 @@ public class IntHistogramTest {
 		h.addValue(3);
 		h.addValue(1);
 		h.addValue(10);
-		
+
 		// Be conservative in case of alternate implementations
 		Assert.assertTrue(h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, -1) > 0.999);
 		Assert.assertTrue(h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 2) > 0.6);
@@ -170,7 +170,7 @@ public class IntHistogramTest {
 		h.addValue(3);
 		h.addValue(3);
 		h.addValue(3);
-		
+
 		// Be conservative in case of alternate implementations
 		Assert.assertTrue(h.estimateSelectivity(Op.NOT_EQUALS, 3) < 0.001);
 		Assert.assertTrue(h.estimateSelectivity(Op.NOT_EQUALS, 8) > 0.01);

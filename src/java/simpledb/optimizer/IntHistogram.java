@@ -2,9 +2,18 @@ package simpledb.optimizer;
 
 import simpledb.execution.Predicate;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
+
+    private int _buckets;
+    private int _min;
+    private int _max;
+    private int[] _bucketsList;
+    private double _totalNum;
 
     /**
      * Create a new IntHistogram.
@@ -24,6 +33,13 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        _buckets = buckets;
+        _min = min;
+        _max = max;
+        _bucketsList = new int[buckets];
+        for (int i = 0; i < buckets; i++) {
+            _bucketsList[i] = 0;
+        }
     }
 
     /**
@@ -32,6 +48,17 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
+        double range = (_max - _min) / (1.0 * _buckets);
+//        System.out.println("max = " + _max + " min = " + _min + " buckets = "
+//                + _buckets + " v = " + v + " range = " + range);
+        int index = (int) ((v - _min) / range);
+        if (index >= _buckets) {
+            index = _buckets - 1;
+        }else if (index < 0) {
+            index = 0;
+        }
+        _bucketsList[index] += 1;
+        _totalNum++;
     }
 
     /**
@@ -47,6 +74,54 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
+        double range = (_max - _min) / (1.0 * _buckets);
+        int index = (int) ((v - _min) / range);
+        if (index >= _buckets) {
+            index = _buckets - 1;
+        }else if (index < 0) {
+            index = 0;
+        }
+
+        if (op.equals(Predicate.Op.EQUALS)) {
+            return _bucketsList[index] / (range * _totalNum);
+        }else if (op.equals(Predicate.Op.LESS_THAN) || op.equals(Predicate.Op.LESS_THAN_OR_EQ)) {
+            double b_f;
+            double left = v - (range * index);
+            b_f = _bucketsList[index] / _totalNum;
+            b_f *= (left / range);
+            b_f += _bucketsList[index] / (range * _totalNum);
+            for (int i = index - 1; i >= 0; i--) {
+                b_f += _bucketsList[i] / _totalNum;
+            }
+            return b_f;
+        }else if (op.equals(Predicate.Op.GREATER_THAN) || op.equals(Predicate.Op.GREATER_THAN_OR_EQ)) {
+            double b_f = 0.0;
+            double right = (range * (index + 1)) - v;
+//            if (op.equals(Predicate.Op.GREATER_THAN)) {
+//                b_f = _bucketsList[index] / _totalNum;
+//                b_f *= (right / range);
+//            }else if (op.equals(Predicate.Op.GREATER_THAN_OR_EQ)) {
+//                b_f = _bucketsList[index] / (range * _totalNum);
+//            }
+
+            b_f = _bucketsList[index] / _totalNum;
+            b_f *= (right / range);
+            b_f += _bucketsList[index] / (range * _totalNum);
+
+            for (int i = index + 1; i < _buckets; i++) {
+                b_f += _bucketsList[i] / _totalNum;
+            }
+            return b_f;
+        }else if (op.equals(Predicate.Op.NOT_EQUALS)) {
+            double b_f = 0.0;
+            for (int i = 0; i < _buckets; i++) {
+                b_f += _bucketsList[i] / _totalNum;
+            }
+
+            b_f -= (_bucketsList[index] / (range * _totalNum));
+            return b_f;
+        }
+
         return -1.0;
     }
     
