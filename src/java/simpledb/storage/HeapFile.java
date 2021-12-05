@@ -90,6 +90,7 @@ public class HeapFile implements DbFile {
             // raf.read(data, pid.getPageNumber() * BufferPool.getPageSize(), BufferPool.getPageSize());
             raf.seek(pid.getPageNumber() * BufferPool.getPageSize());
             raf.read(data);
+            raf.close();
             HeapPage hp = new HeapPage(hpi, data);
             return hp;
         }catch (IOException e) {

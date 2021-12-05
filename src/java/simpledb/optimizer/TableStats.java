@@ -87,7 +87,71 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+        _hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+        _ioCostPerPage = ioCostPerPage;
+        mapIntHist = new HashMap<>();
+        mapStringHist = new HashMap<>();
+        TupleDesc td = _hf.getTupleDesc();
+
+        for (int i = 0; i < td.numFields(); i++) {
+            Type fieldType = td.getFieldType(i);
+            int max = -999999999;
+            int min = 999999999;
+            if (fieldType.equals(Type.INT_TYPE)) {
+                tuplesCount = 0;
+                for (int j = 0; j < _hf.numPages(); j++) {
+                    PageId pageId = new HeapPageId(tableid, j);
+                    HeapPage heapPage = (HeapPage) _hf.readPage(pageId);
+                    Iterator<Tuple> pageTuples = heapPage.iterator();
+                    while (pageTuples.hasNext()) {
+                        tuplesCount++;
+                        Tuple tuple = pageTuples.next();
+                        Field maxField = new IntField(max);
+                        Field minField = new IntField(min);
+                        if (tuple.getField(i).compare(Predicate.Op.GREATER_THAN, maxField)) {
+                            IntField intField = (IntField) tuple.getField(i);
+                            max = intField.getValue();
+                        }
+                        if (tuple.getField(i).compare(Predicate.Op.LESS_THAN, minField)) {
+                            IntField intField = (IntField) tuple.getField(i);
+                            min = intField.getValue();
+                        }
+                    }
+                }
+                mapIntHist.put(i, new IntHistogram(NUM_HIST_BINS, min, max));
+                for (int k = 0; k < _hf.numPages(); k++) {
+                    PageId pageId = new HeapPageId(tableid, k);
+                    HeapPage heapPage = (HeapPage) _hf.readPage(pageId);
+                    Iterator<Tuple> pageTuples = heapPage.iterator();
+                    while (pageTuples.hasNext()) {
+                        Tuple tuple = pageTuples.next();
+                        IntHistogram intHistogram = mapIntHist.get(i);
+                        IntField intField = (IntField) tuple.getField(i);
+                        intHistogram.addValue(intField.getValue());
+                    }
+                }
+            } else if (fieldType.equals(Type.STRING_TYPE)) {
+                mapStringHist.put(i, new StringHistogram(NUM_HIST_BINS));
+                for (int k = 0; k < _hf.numPages(); k++) {
+                    PageId pageId = new HeapPageId(tableid, k);
+                    HeapPage heapPage = (HeapPage) _hf.readPage(pageId);
+                    Iterator<Tuple> pageTuples = heapPage.iterator();
+                    while (pageTuples.hasNext()) {
+                        Tuple tuple = pageTuples.next();
+                        StringHistogram stringHistogram = mapStringHist.get(i);
+                        StringField stringField = (StringField) tuple.getField(i);
+                        stringHistogram.addValue(stringField.getValue());
+                    }
+                }
+            }
+        }
     }
+
+    private int _ioCostPerPage;
+    private HeapFile _hf;
+    private Map<Integer, IntHistogram> mapIntHist;
+    private Map<Integer, StringHistogram> mapStringHist;
+    private int tuplesCount;
 
     /**
      * Estimates the cost of sequentially scanning the file, given that the cost
@@ -103,7 +167,7 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+        return _ioCostPerPage * _hf.numPages();
     }
 
     /**
@@ -117,7 +181,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
-        return 0;
+        return (int) (totalTuples() * selectivityFactor);
     }
 
     /**
@@ -150,7 +214,16 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
-        return 1.0;
+        TupleDesc td = _hf.getTupleDesc();
+        Type fieldType = td.getFieldType(field);
+        if (fieldType.equals(Type.INT_TYPE)) {
+            IntField intField = (IntField) constant;
+            return mapIntHist.get(field).estimateSelectivity(op, intField.getValue());
+        }else if (fieldType.equals(Type.STRING_TYPE)) {
+            StringField stringField = (StringField) constant;
+            return mapStringHist.get(field).estimateSelectivity(op, stringField.getValue());
+        }
+        return -1.0;
     }
 
     /**
@@ -158,7 +231,7 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-        return 0;
+        return tuplesCount;
     }
 
 }
