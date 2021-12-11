@@ -176,8 +176,27 @@ public class JoinOptimizer {
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
         int card = 1;
-        // some code goes here
-        // great than and less than is too difficult to estimate, so there is only equal and not equal situation
+        String tn1 = Database.getCatalog().getTableName(tableAliasToId.get(table1Alias));
+        String tn2 = Database.getCatalog().getTableName(tableAliasToId.get(table2Alias));
+        TableStats stats1 = stats.get(tn1);
+        TableStats stats2 = stats.get(tn2);
+        TupleDesc fd1 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table1Alias));
+        TupleDesc fd2 = Database.getCatalog().getTupleDesc(tableAliasToId.get(table2Alias));
+        int f1 = fd1.fieldNameToIndex(field1PureName);
+        int f2 = fd2.fieldNameToIndex(field2PureName);
+        double avgSelectivityEqual1 = stats1.avgSelectivity(f1, Predicate.Op.EQUALS);
+        double avgSelectivityEqual2 = stats2.avgSelectivity(f2, Predicate.Op.EQUALS);
+        double avgSelectivityNOT_EQUALS1 = stats1.avgSelectivity(f1, Predicate.Op.NOT_EQUALS);
+        double avgSelectivityNOT_EQUALS2 = stats2.avgSelectivity(f2, Predicate.Op.NOT_EQUALS);
+        double avgSelectivityGREATER_THAN1 = stats1.avgSelectivity(f1, Predicate.Op.GREATER_THAN);
+        double avgSelectivityGREATER_THAN2 = stats2.avgSelectivity(f2, Predicate.Op.GREATER_THAN);
+        double avgSelectivityLESS_THAN1 = stats1.avgSelectivity(f1, Predicate.Op.LESS_THAN);
+        double avgSelectivityLESS_THAN2 = stats2.avgSelectivity(f2, Predicate.Op.LESS_THAN);
+        double avgSelectivityGREATER_THAN_OR_EQ1 = stats1.avgSelectivity(f1, Predicate.Op.GREATER_THAN_OR_EQ);
+        double avgSelectivityGREATER_THAN_OR_EQ2 = stats2.avgSelectivity(f2, Predicate.Op.GREATER_THAN_OR_EQ);
+        double avgSelectivityLESS_THAN_OR_EQ1 = stats1.avgSelectivity(f1, Predicate.Op.LESS_THAN_OR_EQ);
+        double avgSelectivityLESS_THAN_OR_EQ2 = stats2.avgSelectivity(f2, Predicate.Op.LESS_THAN_OR_EQ);
+        // some code goes heres
         if (joinOp.equals(Predicate.Op.EQUALS)) {
             if (t1pkey && t2pkey) {
                 card = card1 > card2 ? card2 : card1;
@@ -186,18 +205,26 @@ public class JoinOptimizer {
             }else if (!t1pkey && t2pkey) {
                 card = card1;
             }else {
-                card = (int) (Math.sqrt(card1 * card2));
+                card = (int) ((card1 * avgSelectivityEqual1) * (card2 * avgSelectivityEqual2));
             }
         }else if (joinOp.equals(Predicate.Op.NOT_EQUALS)) {
             if (t1pkey && t2pkey) {
-                card = card1 * card2 - (card1 > card2 ? card2 : card1);
+                card = card1 * card2;
             }else if (t1pkey && !t2pkey) {
-                card = card1 * card2 - card2;
+                card = (int) (card1 * card2 * (1 - avgSelectivityNOT_EQUALS2));
             }else if (!t1pkey && t2pkey) {
-                card = card1 * card2 - card1;
+                card = (int) (card2 * card1 * (1 - avgSelectivityNOT_EQUALS2));
             }else {
-                card = card1 * card2 - ((int) (Math.sqrt(card1 * card2)));
+                card = (int) ((card1 * (1 - avgSelectivityNOT_EQUALS2)) * (card2 * (1 - avgSelectivityNOT_EQUALS1)));
             }
+        }else if (joinOp.equals(Predicate.Op.GREATER_THAN)) {
+            card = (int) ((card1 * avgSelectivityGREATER_THAN1) * (card2 * avgSelectivityGREATER_THAN2));
+        }else if (joinOp.equals(Predicate.Op.GREATER_THAN_OR_EQ)) {
+            card = (int) ((card1 * avgSelectivityGREATER_THAN_OR_EQ1) * (card2 * avgSelectivityGREATER_THAN_OR_EQ2));
+        }else if (joinOp.equals(Predicate.Op.LESS_THAN)) {
+            card = (int) ((card1 * avgSelectivityLESS_THAN1) * (card2 * avgSelectivityLESS_THAN2));
+        }else if (joinOp.equals(Predicate.Op.LESS_THAN_OR_EQ)) {
+            card = (int) ((card1 * avgSelectivityLESS_THAN_OR_EQ1) * (card2 * avgSelectivityLESS_THAN_OR_EQ2));
         }
 
         return card <= 0 ? 1 : card;
@@ -259,24 +286,46 @@ public class JoinOptimizer {
             Map<String, TableStats> stats,
             Map<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
+        explain = true;
             PlanCache planCache = new PlanCache();
-            for (int subSetSize = 0; subSetSize < joins.size(); subSetSize++) {
+            int n = joins.size();
+            for (int subSetSize = 1; subSetSize <= joins.size(); subSetSize++) {
                 Set<Set<LogicalJoinNode>> subSets = enumerateSubsets(joins, subSetSize);
                 for (Set<LogicalJoinNode> subset : subSets) {
-                    CostCard bestPlan = new CostCard();
-                    bestPlan.cost = 10.0;
+//                    subset.stream().forEach(a->{System.out.print(a + " ");});
+//                    System.out.println();
+                    double bestCost = Double.MAX_VALUE;
+                    // CostCard bestCostCard = null;
                     for (LogicalJoinNode logicalJoinNode : subset) {
-                        CostCard costCard = computeCostAndCardOfSubplan(stats, filterSelectivities, logicalJoinNode, subset, bestPlan.cost, planCache);
-                        if (bestPlan.cost > costCard.cost) {
-                            bestPlan = costCard;
+//                        Set<LogicalJoinNode> lj = null;
+//                        if (planCache.containOrder(subset.stream().filter(a-> !a.equals(logicalJoinNode)).collect(Collectors.toSet()))) {
+//                            lj = planCache.getOrder(subset.stream().filter(a-> a != logicalJoinNode).collect(Collectors.toSet())).stream().collect(Collectors.toSet());
+//                        }
+//
+//                        if (lj == null) {
+//                            lj = subset.stream().filter(a-> !a.equals(logicalJoinNode)).collect(Collectors.toSet());
+//                        }
+                        // logicalJoinNode
+                        CostCard costCard = computeCostAndCardOfSubplan(stats, filterSelectivities, logicalJoinNode, subset, bestCost, planCache);
+                        if (costCard != null) {
+                            bestCost = costCard.cost;
+                            // bestCostCard = costCard;
+                            // planCache.addPlan(subset, bestCostCard.cost, bestCostCard.card, bestCostCard.plan);
+                            planCache.addPlan(subset, costCard.cost, costCard.card, costCard.plan);
+//                            System.out.print("plancache size = " + subSetSize);
+//                            subset.stream().forEach(a->{System.out.print(a + " ");});
+//                            System.out.println();
                         }
                     }
-                    planCache.addPlan(subset, bestPlan.cost, bestPlan.card, bestPlan.plan);
                 }
             }
-        // some code goes here
-        //Replace the following
-        return planCache.getOrder(joins.stream().collect(Collectors.toSet()));
+
+            if (explain) {
+                printJoins(joins, planCache, stats, filterSelectivities);
+            }
+            // some code goes here
+            //Replace the following
+            return planCache.getOrder(joins.stream().collect(Collectors.toSet()));
     }
 
     // ===================== Private Methods =================================
@@ -334,6 +383,8 @@ public class JoinOptimizer {
         String table1Alias = j.t1Alias;
         String table2Alias = j.t2Alias;
 
+        // System.out.println("table1Alias : " +table1Alias + " table2Alias : " + table2Alias);
+
         Set<LogicalJoinNode> news = new HashSet<>(joinSet);
         news.remove(j);
 
@@ -369,7 +420,7 @@ public class JoinOptimizer {
             int bestCard = pc.getCard(news);
 
             // estimate cost of right subtree
-            if (doesJoin(prevBest, table1Alias)) { // j.t1 is in prevBest
+            if (doesJoin(prevBest, table2Alias)) { // j.t1 is in prevBest
                 t1cost = prevBestCost; // left side just has cost of whatever
                                        // left
                 // subtree is
@@ -383,7 +434,7 @@ public class JoinOptimizer {
                                 filterSelectivities.get(j.t2Alias));
                 rightPkey = j.t2Alias != null && isPkey(j.t2Alias,
                         j.f2PureName);
-            } else if (doesJoin(prevBest, j.t2Alias)) { // j.t2 is in prevbest
+            } else if (doesJoin(prevBest, table1Alias)) { // j.t2 is in prevbest
                                                         // (both
                 // shouldn't be)
                 t2cost = prevBestCost; // left side just has cost of whatever
@@ -437,9 +488,9 @@ public class JoinOptimizer {
         for (LogicalJoinNode j : joinlist) {
             if (j.t1Alias.equals(table)
                     || (j.t2Alias != null && j.t2Alias.equals(table)))
-                return true;
+                return false;
         }
-        return false;
+        return true;
     }
 
     /**

@@ -263,6 +263,7 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
         // be size of fk table)
         // BUT we had a bug in lab 4 in 2009 that suggested should be size of pk
         // table, so accept either
+        System.out.println("cardinality = " + cardinality);
         Assert.assertTrue(cardinality == 800 || cardinality == 2000);
 
         cardinality = j.estimateJoinCardinality(new LogicalJoinNode("t1", "t2",
@@ -271,6 +272,7 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
                 stats2.estimateTableCardinality(0.2), false, true, TableStats
                         .getStatsMap());
 
+        System.out.println("cardinality = " + cardinality);
         Assert.assertTrue(cardinality == 800 || cardinality == 2000);
     }
 
@@ -523,9 +525,12 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
         // If you're only re-ordering the join nodes,
         // you shouldn't end up with more than you started with
         Assert.assertEquals(result.size(), nodes.size());
+        result.stream().forEach(a->{System.out.print(a + " ");});
 
         // Make sure that "bigTable" is the outermost table in the join
         Assert.assertEquals(result.get(result.size() - 1).t2Alias, "bigTable");
+
+
     }
 
     /**

@@ -196,6 +196,21 @@ public class TableStats {
      * */
     public double avgSelectivity(int field, Predicate.Op op) {
         // some code goes here
+        TupleDesc td = _hf.getTupleDesc();
+        Type fieldType = td.getFieldType(field);
+        if (fieldType.equals(Type.INT_TYPE)) {
+            try {
+                return mapIntHist.get(field).avgSelectivity(op);
+            }catch (Exception e) {
+                e.printStackTrace();
+            }
+        }else if (fieldType.equals(Type.STRING_TYPE)) {
+            try {
+                return mapStringHist.get(field).avgSelectivity(op);
+            }catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         return 1.0;
     }
 

@@ -152,10 +152,21 @@ public class IntHistogram {
      *     join optimization. It may be needed if you want to
      *     implement a more efficient optimization
      * */
-    public double avgSelectivity()
+    public double avgSelectivity(Predicate.Op op)
     {
         // some code goes here
-        return 1.0;
+        List<Integer> midValue = new ArrayList<>();
+        double range = (_max - _min) / (1.0 * _buckets);
+        for (int i  = 0; i < _buckets; i++) {
+            midValue.add((int) (_min + i * range + range / 2));
+        }
+
+        double sum = 0.0;
+        for (int i = 0; i < midValue.size(); i++) {
+            sum += (_bucketsList[i] * estimateSelectivity(op, midValue.get(i)));
+        }
+
+        return sum / _totalNum;
     }
 
     /**
