@@ -4,11 +4,13 @@ import simpledb.common.Database;
 import simpledb.common.Permissions;
 import simpledb.common.DbException;
 import simpledb.common.DeadlockException;
+import simpledb.transaction.LockManger;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
 import java.io.*;
 
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -102,8 +104,10 @@ public class BufferPool {
                 evictPage();
             }
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
+            LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
             return pg;
         }else {
+            LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
             return _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
         }
     }
@@ -120,6 +124,7 @@ public class BufferPool {
     public  void unsafeReleasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        LockManger.getLockManger().releasePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
     }
 
     /**
@@ -130,12 +135,14 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) {
         // some code goes here
         // not necessary for lab1|lab2
+
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
+        // return LockManger.getLockManger().isHoldLock(hashCode(p.getTableId(), p.getPageNumber()), tid);
         return false;
     }
 
@@ -249,6 +256,7 @@ public class BufferPool {
         page.markDirty(false, _tid);
         DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
         hf.writePage(page);
+        Database.getBufferPool().unsafeReleasePage(_tid, pid);
     }
 
     /** Write all pages of the specified transaction to disk.

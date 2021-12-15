@@ -31,6 +31,10 @@ public class Transaction {
         return tid;
     }
 
+    public boolean equals(Object obj) {
+        return (this == obj);
+    }
+
     /** Finish the transaction */
     public void commit() throws IOException {
         transactionComplete(false);

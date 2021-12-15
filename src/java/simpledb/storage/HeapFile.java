@@ -5,6 +5,7 @@ import simpledb.common.Database;
 import simpledb.common.DbException;
 import simpledb.common.Debug;
 import simpledb.common.Permissions;
+import simpledb.transaction.LockManger;
 import simpledb.transaction.Transaction;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
@@ -68,6 +69,7 @@ public class HeapFile implements DbFile {
         // throw new UnsupportedOperationException("implement this");
     }
 
+
     /**
      * Returns the TupleDesc of the table stored in this DbFile.
      * 
@@ -128,7 +130,8 @@ public class HeapFile implements DbFile {
         HeapPage page;
         for (int i = 0; i < numPages(); i++) {
             PageId pageId = new HeapPageId(tableId, i);
-            page = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_ONLY);
+            page = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+            //Database.getBufferPool().unsafeReleasePage(tid, pageId);
             if (page.getNumEmptySlots() != 0) {
                 page.insertTuple(t);
                 pages.add(page);
@@ -155,7 +158,9 @@ public class HeapFile implements DbFile {
         // some code goes here
         // not necessary for lab1
         PageId pageId = t.getRecordId().getPageId();
-        HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_ONLY);
+        HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+        // Database.getBufferPool().unsafeReleasePage(tid, pageId);
+
         page.deleteTuple(t);
 
         ArrayList<Page> pages = new ArrayList<>();
@@ -190,9 +195,12 @@ class HeapFileIterator implements DbFileIterator {
         _numPages = numPages;
     }
 
+
     private Page IteratorGetPage(int pid) throws TransactionAbortedException, DbException {
         HeapPageId hpi = new HeapPageId(_tableId, pid);
-        return bp.getPage(_tid, hpi, Permissions.READ_ONLY);
+        Page page = bp.getPage(_tid, hpi, Permissions.READ_ONLY);
+        Database.getBufferPool().unsafeReleasePage(_tid, page.getId());
+        return page;
     }
 
     @Override
