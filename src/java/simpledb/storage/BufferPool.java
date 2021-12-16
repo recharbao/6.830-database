@@ -135,7 +135,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) {
         // some code goes here
         // not necessary for lab1|lab2
-
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -156,6 +156,11 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit) {
         // some code goes here
         // not necessary for lab1|lab2
+        if (commit) {
+
+        }else {
+
+        }
     }
 
     /**
@@ -277,6 +282,9 @@ public class BufferPool {
         for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
             Integer key = entry.getKey();
             Page page = entry.getValue();
+            if (page.isDirty().equals(_tid)) {
+                continue;
+            }
             try {
                 flushPage(page.getId());
             } catch (IOException e) {
