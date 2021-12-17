@@ -44,8 +44,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
     assertEquals(3, empty.numPages());
 
     this.p0 = new HeapPageId(empty.getId(), 0);
-    this.p1 = new HeapPageId(empty.getId(), 1);
-    PageId p2 = new HeapPageId(empty.getId(), 2);
+    this.p1 = new HeapPageId(empty.getId(), 1);PageId p2 = new HeapPageId(empty.getId(), 2);
     this.tid1 = new TransactionId();
     this.tid2 = new TransactionId();
 
@@ -126,7 +125,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
    * Acquires a write lock and a read lock on the same page, in that order.
    */
   @Test public void acquireWriteReadLocksOnSamePage() throws Exception {
-    // System.out.println("acquireWriteReadLocksOnSamePage !");
+    //System.out.println("acquireWriteReadLocksOnSamePage !");
     metaLockTester(tid1, p0, Permissions.READ_WRITE,
                    tid2, p0, Permissions.READ_ONLY, false);
   }
@@ -136,7 +135,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
    * Acquires a read lock and a write lock on different pages.
    */
   @Test public void acquireReadWriteLocksOnTwoPages() throws Exception {
-    // System.out.println("=================================");
+    //System.out.println("=================================");
     metaLockTester(tid1, p0, Permissions.READ_ONLY,
                    tid2, p1, Permissions.READ_WRITE, true);
   }
@@ -155,7 +154,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
    * Acquires read locks on different pages.
    */
   @Test public void acquireReadLocksOnTwoPages() throws Exception {
-    // System.out.println("acquireReadLocksOnTwoPages !");
+    //System.out.println("acquireReadLocksOnTwoPages !");
     metaLockTester(tid1, p0, Permissions.READ_ONLY,
                    tid2, p1, Permissions.READ_ONLY, true);
   }

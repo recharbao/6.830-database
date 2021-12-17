@@ -16,6 +16,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.Lock;
+import java.util.stream.Stream;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -48,7 +51,8 @@ public class BufferPool {
     // List<Page> _pgs;
 
     // Map<PageId, Page> _map;
-    private Map<Integer, Page> _map;
+
+    private ConcurrentMap<Integer, Page> _map;
     private int _numPage;
     private TransactionId _tid;
 
@@ -56,7 +60,7 @@ public class BufferPool {
         _numPage = numPages;
         // some code goes here
         // _pgs = new ArrayList<>(numPages);
-        _map = new HashMap<>();
+        _map = new ConcurrentHashMap<>();
     }
 
     private int hashCode(Integer tableId, Integer pn) {
@@ -103,8 +107,8 @@ public class BufferPool {
             if (_map.size() >= _numPage) {
                 evictPage();
             }
-            _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+            _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
             LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
@@ -157,9 +161,36 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1|lab2
         if (commit) {
-
+            _map.entrySet().stream()
+                    .map(entry-> entry.getValue())
+                    .filter(page -> (page.isDirty() != null && page.isDirty().equals(tid)))
+                    .forEach(a-> {
+                try {
+                    flushPage(a.getId());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         }else {
+//            _map.entrySet().stream()
+//                    .map(entry -> entry.getValue())
+//                    .filter(page -> (page.isDirty() != null && page.isDirty().equals(tid)))
+//                    .forEach(a-> discardPage(a.getId()));
 
+            for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
+                Page page = entry.getValue();
+                if (page.isDirty() != null && page.isDirty().equals(tid)) {
+                    unsafeReleasePage(tid, page.getId());
+                    discardPage(page.getId());
+                }
+            }
+
+        }
+
+
+        for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
+            Integer key = entry.getKey();
+            LockManger.getLockManger().releasePageLock(key, tid);
         }
     }
 
@@ -186,9 +217,7 @@ public class BufferPool {
         List<Page> pages = hf.insertTuple(tid, t);
         for (int i = 0; i < pages.size(); i++) {
             Page page = pages.get(i);
-            if (i > 0) {
-                page.markDirty(true, tid);
-            }
+            page.markDirty(true, tid);
 //            hf.writePage(page);
             _map.put(hashCode(page.getId().getTableId(), page.getId().getPageNumber()), page);
         }
@@ -215,9 +244,7 @@ public class BufferPool {
         List<Page> pages = hf.deleteTuple(tid, t);
         for (int i = 0; i < pages.size(); i++) {
             Page page = pages.get(i);
-            if (i > 0) {
-                page.markDirty(true, tid);
-            }
+            page.markDirty(true, tid);
 //            hf.writePage(page);
             _map.put(hashCode(page.getId().getTableId(), page.getId().getPageNumber()), page);
         }
@@ -282,7 +309,7 @@ public class BufferPool {
         for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
             Integer key = entry.getKey();
             Page page = entry.getValue();
-            if (page.isDirty().equals(_tid)) {
+            if (page != null || page.isDirty().equals(_tid)) {
                 continue;
             }
             try {

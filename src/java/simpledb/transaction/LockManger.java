@@ -3,13 +3,18 @@ package simpledb.transaction;
 import simpledb.common.Permissions;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LockManger {
-    private Map<Integer, Lock> _pageLock;
-    private Map<Integer, Set<TransactionId>> _pageLockRTid;
-    private Map<Integer, TransactionId> _pageLockWTid;
+    private ConcurrentMap<Integer, Lock> _pageLock;
+    private ConcurrentMap<Integer, Set<TransactionId>> _pageLockRTid;
+    private ConcurrentMap<Integer, TransactionId> _pageLockWTid;
+
+    private static int acquireCount = 0;
+    private static int releaseCount = 0;
 
     private static LockManger lockManger = new LockManger();
 
@@ -18,9 +23,9 @@ public class LockManger {
     }
 
     public LockManger() {
-        _pageLock = new HashMap<>();
-        _pageLockRTid = new HashMap<>();
-        _pageLockWTid = new HashMap<>();
+        _pageLock = new ConcurrentHashMap<>();
+        _pageLockRTid = new ConcurrentHashMap<>();
+        _pageLockWTid = new ConcurrentHashMap<>();
     }
 
 //    public boolean isHoldLock(int pageHashCode, TransactionId tid) {
@@ -44,24 +49,32 @@ public class LockManger {
 //        return result.get(0);
 //    }
 
-    public synchronized void acquirePageLock(int pageHashCode, Permissions perm, TransactionId tid) {
+    public void acquirePageLock(int pageHashCode, Permissions perm, TransactionId tid) {
+        // System.out.println("acquire !" + (++acquireCount));
+
         if (perm.equals(Permissions.READ_WRITE)) {
 //            System.out.println("READ_WRITE");
 //            System.out.println("pageHashCode = " + pageHashCode);
 
             if (_pageLock.containsKey(pageHashCode)) {
-                if ((!_pageLockWTid.containsKey(pageHashCode)) && !(_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).contains(tid))) {
+                // System.out.println((_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).contains(tid)));
+                //if ((!_pageLockWTid.containsKey(pageHashCode)) && !(_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).contains(tid))) {
+                // System.out.println(_pageLockWTid.get(pageHashCode) + " " + _pageLockRTid.get(pageHashCode).equals(tid));
+                if((!_pageLockWTid.containsKey(pageHashCode) || (_pageLockWTid.containsKey(pageHashCode) && !tid.equals(_pageLockWTid.get(pageHashCode)))) && !(_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).contains(tid))) {
                     //System.out.println("read_write included before !");
                     _pageLock.get(pageHashCode).lock();
-                    // System.out.println("read_write included !");
+                    //System.out.println("read_write included !");
                 }
             }else {
                 Lock lock = new ReentrantLock();
-                lock.lock();
                 // System.out.println("read_write not included !");
                 _pageLock.put(pageHashCode, lock);
+                _pageLock.get(pageHashCode).lock();
             }
-
+//
+//            if((_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).equals(tid))) {
+//                _pageLockRTid.get(pageHashCode).remove(tid);
+//            }
             _pageLockWTid.put(pageHashCode, tid);
 
         }else if (perm.equals(Permissions.READ_ONLY)) {
@@ -79,9 +92,9 @@ public class LockManger {
                 // System.out.println("read_only include after!");
             }else {
                 Lock lock = new ReentrantLock();
-                lock.lock();
                 // System.out.println("read_only not included !");
                 _pageLock.put(pageHashCode, lock);
+                _pageLock.get(pageHashCode).lock();
             }
 
             if (!_pageLockRTid.containsKey(pageHashCode)) {
@@ -89,7 +102,7 @@ public class LockManger {
             }
 
             Set<TransactionId> set = _pageLockRTid.get(pageHashCode);
-            if (!set.contains(tid)) {
+            if (!set.contains(tid) && (!_pageLockWTid.containsKey(pageHashCode) || (_pageLockWTid.containsKey(pageHashCode) && !_pageLockWTid.get(pageHashCode).equals(tid)))) {
                 set.add(tid);
             }
 
@@ -97,17 +110,27 @@ public class LockManger {
         }
     }
 
-    public synchronized void releasePageLock(int pageHashCode, TransactionId tid) {
+    public void releasePageLock(int pageHashCode, TransactionId tid) {
+        // System.out.println("release !" + (++releaseCount));
         if (_pageLockWTid.containsKey(pageHashCode)) {
             _pageLockWTid.remove(pageHashCode);
 //            System.out.println("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" +
 //                    "&&&&&&&&&&&&&&&&&&&&&&&&&_pageLockWTid = " + _pageLockRTid.containsKey(pageHashCode) + "   " + pageHashCode);
             _pageLock.get(pageHashCode).unlock();
-        } else if (_pageLockRTid.get(pageHashCode).contains(tid)) {
+        } else if (_pageLockRTid.containsKey(pageHashCode) && _pageLockRTid.get(pageHashCode).contains(tid)) {
             _pageLockRTid.get(pageHashCode).remove(tid);
             if (_pageLockRTid.get(pageHashCode).size() == 0) {
                 _pageLock.get(pageHashCode).unlock();
             }
         }
     }
+
+//
+//    public synchronized void releaseAll(TransactionId tid) {
+////        _pageLock.entrySet().stream()
+////                .map(entry->entry.getKey())
+////                .forEach(a-> releasePageLock(a, tid));
+//
+//
+//    }
 }
