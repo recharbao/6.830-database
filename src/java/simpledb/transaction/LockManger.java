@@ -49,7 +49,7 @@ public class LockManger {
 //        return result.get(0);
 //    }
 
-    public void acquirePageLock(int pageHashCode, Permissions perm, TransactionId tid) {
+    public synchronized void acquirePageLock(int pageHashCode, Permissions perm, TransactionId tid) {
         // System.out.println("acquire !" + (++acquireCount));
 
         if (perm.equals(Permissions.READ_WRITE)) {
@@ -110,7 +110,7 @@ public class LockManger {
         }
     }
 
-    public void releasePageLock(int pageHashCode, TransactionId tid) {
+    public synchronized void releasePageLock(int pageHashCode, TransactionId tid) {
         // System.out.println("release !" + (++releaseCount));
         if (_pageLockWTid.containsKey(pageHashCode)) {
             _pageLockWTid.remove(pageHashCode);
