@@ -213,7 +213,7 @@ public class TransactionTest extends SimpleDbTestBase {
             }           
         }
     }
-    
+
     @Test public void testSingleThread()
             throws IOException, DbException, TransactionAbortedException {
         validateTransactions(1);
@@ -228,7 +228,7 @@ public class TransactionTest extends SimpleDbTestBase {
             throws IOException, DbException, TransactionAbortedException {
         validateTransactions(5);
     }
-    
+
     @Test public void testTenThreads()
     throws IOException, DbException, TransactionAbortedException {
         validateTransactions(10);

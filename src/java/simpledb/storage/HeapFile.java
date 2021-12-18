@@ -199,7 +199,7 @@ class HeapFileIterator implements DbFileIterator {
     private Page IteratorGetPage(int pid) throws TransactionAbortedException, DbException {
         HeapPageId hpi = new HeapPageId(_tableId, pid);
         Page page = bp.getPage(_tid, hpi, Permissions.READ_ONLY);
-        Database.getBufferPool().unsafeReleasePage(_tid, page.getId());
+        // Database.getBufferPool().unsafeReleasePage(_tid, page.getId());
         return page;
     }
 

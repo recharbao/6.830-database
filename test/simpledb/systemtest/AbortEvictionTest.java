@@ -49,6 +49,7 @@ public class AbortEvictionTest extends SimpleDbTestBase {
         ss.open();
         while (ss.hasNext()) {
             Tuple v = ss.next();
+            // System.out.println(v.toString());
             int v0 = ((IntField)v.getField(0)).getValue();
             int v1 = ((IntField)v.getField(1)).getValue();
             if (v0 == -42 && v1 == -43) {

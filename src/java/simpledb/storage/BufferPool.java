@@ -100,6 +100,8 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+
+        //System.out.println("normal !");
         _tid = tid;
         if (_map.get(hashCode(pid.getTableId(), pid.getPageNumber())) == null) {
             DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
@@ -107,11 +109,23 @@ public class BufferPool {
             if (_map.size() >= _numPage) {
                 evictPage();
             }
-            LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+
+            //synchronized (this) {
+                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
+                    throw new TransactionAbortedException();
+                }
+                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+            //}
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
-            LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+            //synchronized (this) {
+                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
+                    //throw new TransactionAbortedException();
+                    throw new TransactionAbortedException();
+                }
+                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+            //}
             return _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
         }
     }
@@ -125,7 +139,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      * @param pid the ID of the page to unlock
      */
-    public  void unsafeReleasePage(TransactionId tid, PageId pid) {
+    public void unsafeReleasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
         LockManger.getLockManger().releasePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
