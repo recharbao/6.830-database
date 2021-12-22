@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import simpledb.common.DbException;
 import simpledb.execution.Delete;
 import simpledb.execution.Filter;

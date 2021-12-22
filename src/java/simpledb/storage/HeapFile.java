@@ -1,15 +1,10 @@
 package simpledb.storage;
 
-import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import simpledb.common.Database;
 import simpledb.common.DbException;
-import simpledb.common.Debug;
 import simpledb.common.Permissions;
-import simpledb.transaction.LockManger;
-import simpledb.transaction.Transaction;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
-import sun.util.resources.cldr.ps.CurrencyNames_ps;
 
 import java.io.*;
 import java.util.*;

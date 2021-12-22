@@ -4,6 +4,7 @@ import simpledb.common.Database;
 import simpledb.common.Permissions;
 import simpledb.common.DbException;
 import simpledb.common.DeadlockException;
+import simpledb.transaction.LockManagerA;
 import simpledb.transaction.LockManger;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
@@ -111,21 +112,32 @@ public class BufferPool {
             }
 
             //synchronized (this) {
-                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
-                    throw new TransactionAbortedException();
-                }
-                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+//                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
+//                    throw new TransactionAbortedException();
+//                }
+//                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
             //}
+
+            if (perm.equals(Permissions.READ_ONLY)) {
+                LockManagerA.getLockManagerA().acquireReadLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+            }else if (perm.equals(Permissions.READ_WRITE)) {
+                LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+            }
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
             //synchronized (this) {
-                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
-                    //throw new TransactionAbortedException();
-                    throw new TransactionAbortedException();
-                }
-                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
+//                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
+//                    //throw new TransactionAbortedException();
+//                    throw new TransactionAbortedException();
+//                }
+//                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
             //}
+            if (perm.equals(Permissions.READ_ONLY)) {
+                LockManagerA.getLockManagerA().acquireReadLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+            }else if (perm.equals(Permissions.READ_WRITE)) {
+                LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+            }
             return _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
         }
     }
@@ -142,7 +154,8 @@ public class BufferPool {
     public void unsafeReleasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
-        LockManger.getLockManger().releasePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+        //LockManger.getLockManger().releasePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+        LockManagerA.getLockManagerA().releaseLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
     }
 
     /**

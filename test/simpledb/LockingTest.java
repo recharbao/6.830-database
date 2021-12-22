@@ -125,7 +125,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
    * Acquires a write lock and a read lock on the same page, in that order.
    */
   @Test public void acquireWriteReadLocksOnSamePage() throws Exception {
-    //System.out.println("acquireWriteReadLocksOnSamePage !");
+    System.out.println("acquireWriteReadLocksOnSamePage !");
     metaLockTester(tid1, p0, Permissions.READ_WRITE,
                    tid2, p0, Permissions.READ_ONLY, false);
   }
