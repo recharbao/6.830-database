@@ -194,6 +194,7 @@ public class BufferPool {
                     .forEach(a-> {
                 try {
                     flushPage(a.getId());
+                    discardPage(a.getId());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -216,8 +217,8 @@ public class BufferPool {
 
 
         for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
-            Integer key = entry.getKey();
-            LockManger.getLockManger().releasePageLock(key, tid);
+            Page page = entry.getValue();
+            unsafeReleasePage(tid, page.getId());
         }
     }
 

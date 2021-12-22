@@ -3,6 +3,7 @@ package simpledb.transaction;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -10,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LockManagerA {
 
     private ConcurrentMap<Integer, Lock> _pageLock;
-    private ConcurrentMap<TransactionId, Set<Integer>> _tidTakeInPages;
+    private ConcurrentMap<simpledb.transaction.TransactionId, Set<Integer>> _tidTakeInPages;
 
 
     public LockManagerA() {
@@ -24,19 +25,19 @@ public class LockManagerA {
         return lockManagerA;
     }
 
-    public void acquireReadLock(Integer page, TransactionId tid) {
+    public void acquireReadLock(Integer page, simpledb.transaction.TransactionId tid) {
         makePageLock(tid, true, page);
     }
 
-    public void acquireWriteLock(Integer page, TransactionId tid) {
+    public void acquireWriteLock(Integer page, simpledb.transaction.TransactionId tid) {
         makePageLock(tid, false, page);
     }
 
-    public void releaseLock(Integer page, TransactionId tid) {
+    public void releaseLock(Integer page, simpledb.transaction.TransactionId tid) {
         _pageLock.get(page).unLock(tid);
     }
 
-    private void makePageLock(TransactionId tid, boolean isReadStage, Integer page) {
+    private void makePageLock(simpledb.transaction.TransactionId tid, boolean isReadStage, Integer page) {
         if (_pageLock.containsKey(page)) {
             _pageLock.get(page).lock(isReadStage, tid);
         }else {
@@ -49,11 +50,11 @@ public class LockManagerA {
 
 
 class Lock extends ReentrantLock {
-    private volatile boolean _isReadStage = true;
-    private volatile boolean _isLock = false;
-    private Set<TransactionId> _acquireLockTids = new HashSet<>();
+    private boolean _isReadStage = true;
+    private boolean _isLock = false;
+    private Set<simpledb.transaction.TransactionId> _acquireLockTids = new HashSet<>();
 
-    public void lock(boolean isReadStage, TransactionId tid) {
+    public void lock(boolean isReadStage, simpledb.transaction.TransactionId tid) {
         //randSleep();
         if (!_isLock) {
             _isLock = true;
@@ -61,7 +62,9 @@ class Lock extends ReentrantLock {
             _isReadStage = isReadStage;
             _acquireLockTids.add(tid);
         }else {
-            if (_isReadStage && isReadStage) {
+            if (_acquireLockTids.contains(tid)) {
+                return;
+            }else if (_isReadStage && isReadStage) {
                 _acquireLockTids.add(tid);
             }else if (!_isReadStage && isReadStage) {
                 super.lock();
@@ -82,7 +85,7 @@ class Lock extends ReentrantLock {
         }
     }
 
-    public void unLock(TransactionId tid) {
+    public void unLock(simpledb.transaction.TransactionId tid) {
         _acquireLockTids.remove(tid);
         if (_acquireLockTids.size() == 0) {
             super.unlock();
