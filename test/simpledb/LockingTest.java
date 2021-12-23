@@ -164,6 +164,7 @@ public class LockingTest extends TestUtil.CreateHeapFile {
    * Attempt lock upgrade.
    */
   @Test public void lockUpgrade() throws Exception {
+    System.out.println("lockUpgrade !");
     metaLockTester(tid1, p0, Permissions.READ_ONLY,
                    tid1, p0, Permissions.READ_WRITE, true);
     metaLockTester(tid2, p1, Permissions.READ_ONLY,

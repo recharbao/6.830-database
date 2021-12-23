@@ -109,14 +109,13 @@ public class TransactionTest extends SimpleDbTestBase {
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
-
                         // create a Tuple so that Insert can insert this new value
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
 
                         // sleep to get some interesting thread interleavings
-                        Thread.sleep(100);
+                        Thread.sleep(1);
 
                         // race the other threads to finish the transaction: one will win
                         q1.close();
@@ -129,7 +128,6 @@ public class TransactionTest extends SimpleDbTestBase {
                         q2.start();
                         q2.next();
                         q2.close();
-
                         // set up a Set with a tuple that is one higher than the old one.
                         Set<Tuple> hs = new HashSet<>();
                         hs.add(t);

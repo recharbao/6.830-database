@@ -27,30 +27,31 @@ public class LockManagerA {
     }
 
     public void acquireReadLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
-        System.out.println("ReadLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         if (_detectDeadLock.isDeadLock(page, tid)) {
             throw new TransactionAbortedException();
         }
         _detectDeadLock.addTidRequestPages(tid, page);
         makePageLock(tid, true, page);
+        System.out.println("ReadLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         _detectDeadLock.deTidRequestPages(tid, page);
         _detectDeadLock.addPageHoldTids(tid, page);
     }
 
     public void acquireWriteLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
-        System.out.println("WriteLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         if (_detectDeadLock.isDeadLock(page, tid)) {
             throw new TransactionAbortedException();
         }
         _detectDeadLock.addTidRequestPages(tid, page);
+        System.out.println("WriteLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         makePageLock(tid, false, page);
+        System.out.println("WriteLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         _detectDeadLock.deTidRequestPages(tid, page);
         _detectDeadLock.addPageHoldTids(tid, page);
     }
 
     public void releaseLock(Integer page, simpledb.transaction.TransactionId tid) {
-        System.out.println("unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
         _pageLock.get(page).unLock(tid);
+        System.out.println("unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
         _detectDeadLock.dePageHoldTids(tid, page);
     }
 
@@ -176,14 +177,26 @@ class Lock extends ReentrantLock {
 
     public void lock(boolean isReadStage, TransactionId tid) {
         //randSleep();
+        System.out.println("lock====" + "Thread : " + Thread.currentThread());
         if (!_isLock) {
             _isLock = true;
             super.lock();
+            System.out.println("locked !");
             _isReadStage = isReadStage;
             _acquireLockTids.add(tid);
         }else {
             if (_acquireLockTids.contains(tid)) {
-                return;
+                if (_isReadStage && !isReadStage) {
+                    System.out.println("***********" +  "  Thread : " + Thread.currentThread() + " tid " + tid);
+                    //super.unlock();
+                    super.lock();
+                    System.out.println("***********?");
+                    _isReadStage = false;
+                    _acquireLockTids.add(tid);
+                    _isLock = true;
+                } else {
+                    return;
+                }
             }else if (_isReadStage && isReadStage) {
                 _acquireLockTids.add(tid);
             }else if (!_isReadStage && isReadStage) {
@@ -206,9 +219,11 @@ class Lock extends ReentrantLock {
     }
 
     public void unLock(TransactionId tid) {
+        System.out.println("unlock !" + "  Thread : " + Thread.currentThread() + _acquireLockTids.size());
         if (_acquireLockTids.remove(tid) && _acquireLockTids.size() == 0) {
+            System.out.println("acsize = " + _acquireLockTids.size());
             super.unlock();
-            //System.out.println("unlock !");
+            System.out.println("unlock !" +   "  Thread : " + Thread.currentThread() );
             //randSleep();
             _isLock = false;
         }
