@@ -27,6 +27,7 @@ public class LockManagerA {
     }
 
     public void acquireReadLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
+        System.out.println("ReadLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         if (_detectDeadLock.isDeadLock(page, tid)) {
             throw new TransactionAbortedException();
         }
@@ -37,6 +38,7 @@ public class LockManagerA {
     }
 
     public void acquireWriteLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
+        System.out.println("WriteLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page);
         if (_detectDeadLock.isDeadLock(page, tid)) {
             throw new TransactionAbortedException();
         }
@@ -47,6 +49,7 @@ public class LockManagerA {
     }
 
     public void releaseLock(Integer page, simpledb.transaction.TransactionId tid) {
+        System.out.println("unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
         _pageLock.get(page).unLock(tid);
         _detectDeadLock.dePageHoldTids(tid, page);
     }
@@ -64,6 +67,8 @@ public class LockManagerA {
             _pageLock.put(page, lock);
         }
     }
+
+
 }
 
 
@@ -127,35 +132,37 @@ class DetectDeadLock {
     }
 
     private boolean bfs(Set<Integer> TidsrequestPages, Set<Integer> nowTidHoldPages) {
-        for(Integer rt : TidsrequestPages) {
-            for(Integer ntp : nowTidHoldPages) {
-                if (rt == ntp) {
-                    return true;
+        while (true) {
+            for(Integer rt : TidsrequestPages) {
+                for(Integer ntp : nowTidHoldPages) {
+                    if (rt == ntp) {
+                        return true;
+                    }
                 }
             }
-        }
 
-        Set<TransactionId> tids = new HashSet<>();
-        TidsrequestPages.stream()
+            Set<TransactionId> tids = new HashSet<>();
+            TidsrequestPages.stream()
                     .forEach(a->{
                         if (_pageHoldTids.containsKey(a)) {
                             tids.addAll(_pageHoldTids.get(a));
                         }
                     });
 
-        Set<Integer> TidsrequestPages2 = new HashSet<>();
-        tids.stream()
-            .forEach(a->{
-                if (_tidRequestPages.containsKey(a)) {
-                    TidsrequestPages2.addAll(_tidRequestPages.get(a));
-                }
-            });
+            Set<Integer> TidsrequestPages2 = new HashSet<>();
+            tids.stream()
+                    .forEach(a->{
+                        if (_tidRequestPages.containsKey(a)) {
+                            TidsrequestPages2.addAll(_tidRequestPages.get(a));
+                        }
+                    });
+            TidsrequestPages = TidsrequestPages2;
 
-        if (TidsrequestPages2.size() == 0) {
-            return false;
+            if (TidsrequestPages.size() == 0) {
+                break;
+            }
         }
-
-        return bfs(TidsrequestPages2, nowTidHoldPages);
+        return false;
     }
 
 }
@@ -199,9 +206,9 @@ class Lock extends ReentrantLock {
     }
 
     public void unLock(TransactionId tid) {
-        _acquireLockTids.remove(tid);
-        if (_acquireLockTids.size() == 0) {
+        if (_acquireLockTids.remove(tid) && _acquireLockTids.size() == 0) {
             super.unlock();
+            //System.out.println("unlock !");
             //randSleep();
             _isLock = false;
         }
@@ -211,12 +218,12 @@ class Lock extends ReentrantLock {
         return _isLock;
     }
 
-//    private void randSleep() {
-//        try {
-//            System.out.println(Math.random());
-//            Thread.sleep(Math.random());
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-//    }
+    private void randSleep() {
+        try {
+            double v = 1 + 10 * Math.random();
+            Thread.sleep((int)v);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
 }

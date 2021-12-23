@@ -12,10 +12,7 @@ import simpledb.transaction.TransactionId;
 import java.io.*;
 
 import java.sql.Time;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
@@ -58,6 +55,7 @@ public class BufferPool {
     private TransactionId _tid;
 
     public BufferPool(int numPages) {
+        // System.out.println("numPage = " + numPages);
         _numPage = numPages;
         // some code goes here
         // _pgs = new ArrayList<>(numPages);
@@ -107,7 +105,6 @@ public class BufferPool {
         }else if (perm.equals(Permissions.READ_WRITE)) {
             LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
         }
-        // System.out.println("normal !");
 
         _tid = tid;
         if (_map.get(hashCode(pid.getTableId(), pid.getPageNumber())) == null) {
@@ -117,28 +114,9 @@ public class BufferPool {
                 evictPage();
             }
 
-            //synchronized (this) {
-//                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
-//                    throw new TransactionAbortedException();
-//                }
-//                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
-            //}
-
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
-            //synchronized (this) {
-//                if (LockManger.getLockManger().detectDeadLock(tid, hashCode(pid.getTableId(), pid.getPageNumber()))) {
-//                    //throw new TransactionAbortedException();
-//                    throw new TransactionAbortedException();
-//                }
-//                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
-            //}
-            if (perm.equals(Permissions.READ_ONLY)) {
-                LockManagerA.getLockManagerA().acquireReadLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
-            }else if (perm.equals(Permissions.READ_WRITE)) {
-                LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
-            }
             return _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
         }
     }
@@ -188,39 +166,44 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit) {
         // some code goes here
         // not necessary for lab1|lab2
-        System.out.println("transactionComplete !");
+        //System.out.println("transactionComplete !");
+
+        Set<Integer> alreadyRelease = new HashSet<>();
+
         if (commit) {
             _map.entrySet().stream()
                     .map(entry-> entry.getValue())
                     .filter(page -> (page.isDirty() != null && page.isDirty().equals(tid)))
                     .forEach(a-> {
                 try {
+                    System.out.println("a.getId() " + hashCode(a.getId().getTableId(), a.getId().getPageNumber()) + "tid = " + tid);
                     flushPage(a.getId());
-                    System.out.println("a.getId() " + hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
-                    discardPage(a.getId());
+                    //discardPage(a.getId());
+                    alreadyRelease.add(hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
         }else {
-//            _map.entrySet().stream()
-//                    .map(entry -> entry.getValue())
-//                    .filter(page -> (page.isDirty() != null && page.isDirty().equals(tid)))
-//                    .forEach(a-> discardPage(a.getId()));
-
             for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
+                Integer key = entry.getKey();
                 Page page = entry.getValue();
                 if (page.isDirty() != null && page.isDirty().equals(tid)) {
-                    unsafeReleasePage(tid, page.getId());
+                    DbFile hf = Database.getCatalog().getDatabaseFile(page.getId().getTableId());
+                    Page pg = hf.readPage(page.getId());
+                    _map.put(key, pg);
                 }
             }
-
         }
 
 
         for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
+            Integer key = entry.getKey();
+            if (alreadyRelease.contains(key)) {
+                continue;
+            }
             Page page = entry.getValue();
-            System.out.println("page.getId() " + hashCode(page.getId().getTableId(), page.getId().getPageNumber()));
+            //System.out.println("page.getId() " + hashCode(page.getId().getTableId(), page.getId().getPageNumber()) + " tid = " + tid);
             unsafeReleasePage(tid, page.getId());
         }
     }
@@ -338,12 +321,16 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
         // System.out.println("mapsize : " + _map.size());
+        boolean flag = true;
         for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
             Integer key = entry.getKey();
             Page page = entry.getValue();
-            if (page != null || page.isDirty().equals(_tid)) {
+            if (page != null && page.isDirty() != null) {
                 continue;
             }
+
+            flag = false;
+            //System.out.println("============");
             try {
                 flushPage(page.getId());
             } catch (IOException e) {
@@ -352,6 +339,11 @@ public class BufferPool {
 
             discardPage(page.getId());
             break;
+        }
+
+        if (flag) {
+            //System.out.println(_map.size() + " " + _numPage);
+            throw new DbException("bad evict !");
         }
     }
 }
