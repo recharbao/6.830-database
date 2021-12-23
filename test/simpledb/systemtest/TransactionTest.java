@@ -216,6 +216,7 @@ public class TransactionTest extends SimpleDbTestBase {
 
     @Test public void testSingleThread()
             throws IOException, DbException, TransactionAbortedException {
+        System.out.println("testSingleThread !================");
         validateTransactions(1);
     }
 

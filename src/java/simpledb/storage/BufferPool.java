@@ -102,7 +102,13 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
 
-        //System.out.println("normal !");
+        if (perm.equals(Permissions.READ_ONLY)) {
+            LockManagerA.getLockManagerA().acquireReadLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+        }else if (perm.equals(Permissions.READ_WRITE)) {
+            LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
+        }
+        // System.out.println("normal !");
+
         _tid = tid;
         if (_map.get(hashCode(pid.getTableId(), pid.getPageNumber())) == null) {
             DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
@@ -118,11 +124,6 @@ public class BufferPool {
 //                LockManger.getLockManger().acquirePageLock(hashCode(pid.getTableId(), pid.getPageNumber()), perm, tid);
             //}
 
-            if (perm.equals(Permissions.READ_ONLY)) {
-                LockManagerA.getLockManagerA().acquireReadLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
-            }else if (perm.equals(Permissions.READ_WRITE)) {
-                LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
-            }
             _map.put(hashCode(pid.getTableId(), pid.getPageNumber()), pg);
             return pg;
         }else {
@@ -187,6 +188,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit) {
         // some code goes here
         // not necessary for lab1|lab2
+        System.out.println("transactionComplete !");
         if (commit) {
             _map.entrySet().stream()
                     .map(entry-> entry.getValue())
@@ -194,6 +196,7 @@ public class BufferPool {
                     .forEach(a-> {
                 try {
                     flushPage(a.getId());
+                    System.out.println("a.getId() " + hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
                     discardPage(a.getId());
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -209,7 +212,6 @@ public class BufferPool {
                 Page page = entry.getValue();
                 if (page.isDirty() != null && page.isDirty().equals(tid)) {
                     unsafeReleasePage(tid, page.getId());
-                    discardPage(page.getId());
                 }
             }
 
@@ -218,6 +220,7 @@ public class BufferPool {
 
         for (ConcurrentMap.Entry<Integer, Page> entry : _map.entrySet()) {
             Page page = entry.getValue();
+            System.out.println("page.getId() " + hashCode(page.getId().getTableId(), page.getId().getPageNumber()));
             unsafeReleasePage(tid, page.getId());
         }
     }
@@ -241,6 +244,7 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        //LockManagerA.getLockManagerA().acquireWriteLock(hashCode(pid.getTableId(), pid.getPageNumber()), tid);
         DbFile hf = Database.getCatalog().getDatabaseFile(tableId);
         List<Page> pages = hf.insertTuple(tid, t);
         for (int i = 0; i < pages.size(); i++) {

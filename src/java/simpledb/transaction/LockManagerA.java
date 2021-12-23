@@ -51,6 +51,10 @@ public class LockManagerA {
         _detectDeadLock.dePageHoldTids(tid, page);
     }
 
+    public boolean isLock(Integer page) {
+        return _pageLock.get(page).isLock();
+    }
+
     private void makePageLock(TransactionId tid, boolean isReadStage, Integer page) {
         if (_pageLock.containsKey(page)) {
             _pageLock.get(page).lock(isReadStage, tid);
@@ -117,12 +121,13 @@ class DetectDeadLock {
                          .map(b->b.getKey())
                          .forEach(c->nowTidHoldPages.add(c));
 
-        Set<Integer> requestTids = _tidRequestPages.get(tid);
-        return bfs(requestTids, nowTidHoldPages);
+        Set<Integer> TidsrequestPages = new HashSet<>();
+        TidsrequestPages.add(page);
+        return bfs(TidsrequestPages, nowTidHoldPages);
     }
 
-    private boolean bfs(Set<Integer> requestTids, Set<Integer> nowTidHoldPages) {
-        for(Integer rt : requestTids) {
+    private boolean bfs(Set<Integer> TidsrequestPages, Set<Integer> nowTidHoldPages) {
+        for(Integer rt : TidsrequestPages) {
             for(Integer ntp : nowTidHoldPages) {
                 if (rt == ntp) {
                     return true;
@@ -131,27 +136,26 @@ class DetectDeadLock {
         }
 
         Set<TransactionId> tids = new HashSet<>();
-        requestTids.stream()
-                    .forEach(a->tids.addAll(_pageHoldTids.get(a)));
+        TidsrequestPages.stream()
+                    .forEach(a->{
+                        if (_pageHoldTids.containsKey(a)) {
+                            tids.addAll(_pageHoldTids.get(a));
+                        }
+                    });
 
-        Set<Integer> request2Tids = new HashSet<>();
+        Set<Integer> TidsrequestPages2 = new HashSet<>();
         tids.stream()
-            .forEach(a->request2Tids.addAll(_tidRequestPages.get(a)));
+            .forEach(a->{
+                if (_tidRequestPages.containsKey(a)) {
+                    TidsrequestPages2.addAll(_tidRequestPages.get(a));
+                }
+            });
 
-        if (request2Tids.size() == 0) {
+        if (TidsrequestPages2.size() == 0) {
             return false;
         }
 
-        Set<Boolean> result = new HashSet<>();
-        request2Tids.stream().forEach(a->{
-            result.add(bfs(requestTids, nowTidHoldPages));
-        });
-
-        if (result.contains(true)) {
-            return true;
-        }
-
-        return false;
+        return bfs(TidsrequestPages2, nowTidHoldPages);
     }
 
 }
@@ -201,6 +205,10 @@ class Lock extends ReentrantLock {
             //randSleep();
             _isLock = false;
         }
+    }
+
+    public boolean isLock() {
+        return _isLock;
     }
 
 //    private void randSleep() {
