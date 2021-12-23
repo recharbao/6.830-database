@@ -55,17 +55,13 @@ public class LockManagerA {
         _detectDeadLock.dePageHoldTids(tid, page);
     }
 
-    public boolean isLock(Integer page) {
-        return _pageLock.get(page).isLock();
-    }
-
     private void makePageLock(TransactionId tid, boolean isReadStage, Integer page) {
         if (_pageLock.containsKey(page)) {
             _pageLock.get(page).lock(isReadStage, tid);
         }else {
             Lock lock = new Lock();
-            lock.lock(isReadStage, tid);
             _pageLock.put(page, lock);
+            lock.lock(isReadStage, tid);
         }
     }
 
@@ -170,13 +166,23 @@ class DetectDeadLock {
 
 
 
+
+
+
+
 class Lock extends ReentrantLock {
-    private boolean _isReadStage = true;
-    private boolean _isLock = false;
+    private volatile boolean _isReadStage = true;
+    private volatile boolean _isLock = false;
     private Set<TransactionId> _acquireLockTids = new HashSet<>();
 
     public void lock(boolean isReadStage, TransactionId tid) {
-        //randSleep();
+        // randSleep();
+        // try {
+        //     Thread.sleep((int)(Math.random() * 1000));
+        // } catch (Exception e) {
+        //     //TODO: handle exception
+        // }
+        System.out.println("Thread : " + Thread.currentThread() + " isLock : " + _isLock);
         System.out.println("lock====" + "Thread : " + Thread.currentThread());
         if (!_isLock) {
             _isLock = true;
@@ -189,10 +195,11 @@ class Lock extends ReentrantLock {
                 if (_isReadStage && !isReadStage) {
                     System.out.println("***********" +  "  Thread : " + Thread.currentThread() + " tid " + tid);
                     //super.unlock();
-                    super.lock();
-                    System.out.println("***********?");
+                    if (_acquireLockTids.size() > 1) {
+                        super.lock();
+                    }
+                    //System.out.println("***********?");
                     _isReadStage = false;
-                    _acquireLockTids.add(tid);
                     _isLock = true;
                 } else {
                     return;
@@ -223,22 +230,16 @@ class Lock extends ReentrantLock {
         if (_acquireLockTids.remove(tid) && _acquireLockTids.size() == 0) {
             System.out.println("acsize = " + _acquireLockTids.size());
             super.unlock();
+            // try {
+            //     Thread.sleep((int)(Math.random() * 1000));
+            // } catch (Exception e) {
+            //     //TODO: handle exception
+            // }
             System.out.println("unlock !" +   "  Thread : " + Thread.currentThread() );
             //randSleep();
             _isLock = false;
         }
     }
 
-    public boolean isLock() {
-        return _isLock;
-    }
 
-    private void randSleep() {
-        try {
-            double v = 1 + 10 * Math.random();
-            Thread.sleep((int)v);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
 }
