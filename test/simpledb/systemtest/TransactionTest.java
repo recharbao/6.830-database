@@ -112,6 +112,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
+                        System.out.println("&&&&&&&&&&&&&&&&&&Thread : " + Thread.currentThread() + " i =  " + i);
                         // create a Tuple so that Insert can insert this new value
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
@@ -129,7 +130,8 @@ public class TransactionTest extends SimpleDbTestBase {
                         Query q2 = new Query(delOp, tr.getId());
                         System.out.println("Thread : " + Thread.currentThread() + "   " + "here4 !");
                         q2.start();
-                        q2.next();
+                        //q2.next();
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + q2.next().toString());
                         q2.close();
 
                         // set up a Set with a tuple that is one higher than the old one.
@@ -218,47 +220,47 @@ public class TransactionTest extends SimpleDbTestBase {
         }
     }
 
-     @Test public void testSingleThread()
-             throws IOException, DbException, TransactionAbortedException {
-         System.out.println("testSingleThread !================");
-         validateTransactions(1);
-     }
+    //  @Test public void testSingleThread()
+    //          throws IOException, DbException, TransactionAbortedException {
+    //      System.out.println("testSingleThread !================");
+    //      validateTransactions(1);
+    //  }
 
     @Test public void testTwoThreads()
             throws IOException, DbException, TransactionAbortedException {
         validateTransactions(2);
     }
 
-     @Test public void testFiveThreads()
-             throws IOException, DbException, TransactionAbortedException {
-         validateTransactions(5);
-     }
+    //  @Test public void testFiveThreads()
+    //          throws IOException, DbException, TransactionAbortedException {
+    //      validateTransactions(5);
+    //  }
 
-     @Test public void testTenThreads()
-     throws IOException, DbException, TransactionAbortedException {
-         validateTransactions(10);
-     }
+    //  @Test public void testTenThreads()
+    //  throws IOException, DbException, TransactionAbortedException {
+    //      validateTransactions(10);
+    //  }
 
-     @Test public void testAllDirtyFails()
-             throws IOException, DbException, TransactionAbortedException {
-         // Allocate a file with ~10 pages of data
-         HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
-         Database.resetBufferPool(1);
+    //  @Test public void testAllDirtyFails()
+    //          throws IOException, DbException, TransactionAbortedException {
+    //      // Allocate a file with ~10 pages of data
+    //      HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
+    //      Database.resetBufferPool(1);
 
-         // BEGIN TRANSACTION
-         Transaction t = new Transaction();
-         t.start();
+    //      // BEGIN TRANSACTION
+    //      Transaction t = new Transaction();
+    //      t.start();
 
-         // Insert a new row
-         AbortEvictionTest.insertRow(f, t);
+    //      // Insert a new row
+    //      AbortEvictionTest.insertRow(f, t);
 
-         // Scanning the table must fail because it can't evict the dirty page
-         try {
-             AbortEvictionTest.findMagicTuple(f, t);
-             fail("Expected scan to run out of available buffer pages");
-         } catch (DbException ignored) {}
-         t.commit();
-     }
+    //      // Scanning the table must fail because it can't evict the dirty page
+    //      try {
+    //          AbortEvictionTest.findMagicTuple(f, t);
+    //          fail("Expected scan to run out of available buffer pages");
+    //      } catch (DbException ignored) {}
+    //      t.commit();
+    //  }
 
     /** Make test compatible with older version of ant. */
     public static junit.framework.Test suite() {
