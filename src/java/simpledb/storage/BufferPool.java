@@ -178,7 +178,7 @@ public class BufferPool {
                 try {
                     System.out.println("a.getId() " + hashCode(a.getId().getTableId(), a.getId().getPageNumber()) + "tid = " + tid);
                     flushPage(a.getId());
-                    //discardPage(a.getId());
+                    // discardPage(a.getId());
                     alreadyRelease.add(hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
                 } catch (IOException e) {
                     e.printStackTrace();

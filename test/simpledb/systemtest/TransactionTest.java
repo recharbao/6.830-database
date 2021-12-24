@@ -69,6 +69,7 @@ public class TransactionTest extends SimpleDbTestBase {
             assert tester.completed;
         }
 
+        System.out.println("Thread : " + Thread.currentThread() + "   " + "here7 !");
         // Check that the table has the correct value
         TransactionId tid = new TransactionId();
         DbFileIterator it = table.iterator(tid);
@@ -99,10 +100,12 @@ public class TransactionTest extends SimpleDbTestBase {
                     latch.await();
                     Transaction tr = new Transaction();
                     try {
+
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
                         tr.start();
                         SeqScan ss1 = new SeqScan(tr.getId(), tableId, "");
                         SeqScan ss2 = new SeqScan(tr.getId(), tableId, "");
-
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
                         // read the value out of the table
                         Query q1 = new Query(ss1, tr.getId());
                         q1.start();
@@ -113,7 +116,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
-
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here3 !");
                         // sleep to get some interesting thread interleavings
                         Thread.sleep(1);
 
@@ -124,21 +127,24 @@ public class TransactionTest extends SimpleDbTestBase {
                         Delete delOp = new Delete(tr.getId(), ss2);
 
                         Query q2 = new Query(delOp, tr.getId());
-
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here4 !");
                         q2.start();
                         q2.next();
                         q2.close();
+
                         // set up a Set with a tuple that is one higher than the old one.
                         Set<Tuple> hs = new HashSet<>();
                         hs.add(t);
                         TupleIterator ti = new TupleIterator(t.getTupleDesc(), hs);
 
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here5 !");
                         // insert this new tuple into the table
                         Insert insOp = new Insert(tr.getId(), ti, tableId);
                         Query q3 = new Query(insOp, tr.getId());
                         q3.start();
                         q3.next();
                         q3.close();
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here6 !");
 
                         tr.commit();
                         break;
@@ -212,47 +218,47 @@ public class TransactionTest extends SimpleDbTestBase {
         }
     }
 
-    // @Test public void testSingleThread()
-    //         throws IOException, DbException, TransactionAbortedException {
-    //     System.out.println("testSingleThread !================");
-    //     validateTransactions(1);
-    // }
+     @Test public void testSingleThread()
+             throws IOException, DbException, TransactionAbortedException {
+         System.out.println("testSingleThread !================");
+         validateTransactions(1);
+     }
 
     @Test public void testTwoThreads()
             throws IOException, DbException, TransactionAbortedException {
         validateTransactions(2);
     }
 
-    // @Test public void testFiveThreads()
-    //         throws IOException, DbException, TransactionAbortedException {
-    //     validateTransactions(5);
-    // }
+     @Test public void testFiveThreads()
+             throws IOException, DbException, TransactionAbortedException {
+         validateTransactions(5);
+     }
 
-    // @Test public void testTenThreads()
-    // throws IOException, DbException, TransactionAbortedException {
-    //     validateTransactions(10);
-    // }
+     @Test public void testTenThreads()
+     throws IOException, DbException, TransactionAbortedException {
+         validateTransactions(10);
+     }
 
-    // @Test public void testAllDirtyFails()
-    //         throws IOException, DbException, TransactionAbortedException {
-    //     // Allocate a file with ~10 pages of data
-    //     HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
-    //     Database.resetBufferPool(1);
+     @Test public void testAllDirtyFails()
+             throws IOException, DbException, TransactionAbortedException {
+         // Allocate a file with ~10 pages of data
+         HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
+         Database.resetBufferPool(1);
 
-    //     // BEGIN TRANSACTION
-    //     Transaction t = new Transaction();
-    //     t.start();
+         // BEGIN TRANSACTION
+         Transaction t = new Transaction();
+         t.start();
 
-    //     // Insert a new row
-    //     AbortEvictionTest.insertRow(f, t);
+         // Insert a new row
+         AbortEvictionTest.insertRow(f, t);
 
-    //     // Scanning the table must fail because it can't evict the dirty page
-    //     try {
-    //         AbortEvictionTest.findMagicTuple(f, t);
-    //         fail("Expected scan to run out of available buffer pages");
-    //     } catch (DbException ignored) {}
-    //     t.commit();
-    // }
+         // Scanning the table must fail because it can't evict the dirty page
+         try {
+             AbortEvictionTest.findMagicTuple(f, t);
+             fail("Expected scan to run out of available buffer pages");
+         } catch (DbException ignored) {}
+         t.commit();
+     }
 
     /** Make test compatible with older version of ant. */
     public static junit.framework.Test suite() {
