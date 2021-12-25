@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import simpledb.common.DbException;
+
 public class LockManagerA {
 
     private ConcurrentMap<Integer, Lock> _pageLock;
@@ -57,8 +59,9 @@ public class LockManagerA {
     }
 
     public void releaseLock(Integer page, simpledb.transaction.TransactionId tid) {
+        System.out.println("before unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
         _pageLock.get(page).unLock(tid);
-        System.out.println("unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
+        System.out.println("after unLock !" + "  Thread : " + Thread.currentThread() + "  " + tid + "  " + page + " ");
         _detectDeadLock.dePageHoldTids(tid, page);
     }
 
@@ -86,7 +89,7 @@ class DetectDeadLock {
         _pageHoldTids = new ConcurrentHashMap<>();
     }
 
-    public void addTidRequestPages(TransactionId tid, Integer page) {
+    public synchronized void addTidRequestPages(TransactionId tid, Integer page) {
         if (!_tidRequestPages.containsKey(tid)) {
             Set<Integer> set = new HashSet<>();
             set.add(page);
@@ -99,13 +102,13 @@ class DetectDeadLock {
     }
 
 
-    public void deTidRequestPages(TransactionId tid, Integer page) {
+    public synchronized void deTidRequestPages(TransactionId tid, Integer page) {
         if (_tidRequestPages.containsKey(tid)) {
             _tidRequestPages.get(tid).remove(page);
         }
     }
 
-    public void addPageHoldTids(TransactionId tid, Integer page) {
+    public synchronized void addPageHoldTids(TransactionId tid, Integer page) {
         if (_pageHoldTids.containsKey(page)) {
             _pageHoldTids.get(page).add(tid);
         }else {
@@ -115,37 +118,64 @@ class DetectDeadLock {
         }
     }
 
-    public void dePageHoldTids(TransactionId tid, Integer page) {
+    public synchronized void dePageHoldTids(TransactionId tid, Integer page) {
         if (_pageHoldTids.containsKey(page)) {
             _pageHoldTids.get(page).remove(tid);
         }
     }
 
 
-    public boolean isDeadLock(Integer page, TransactionId tid) {
+    public synchronized boolean isDeadLock(Integer page, TransactionId tid) {
         Set<Integer> nowTidHoldPages = new HashSet<>();
         _pageHoldTids.entrySet().stream()
                          .filter(a->a.getValue().contains(tid))
                          .map(b->b.getKey())
                          .forEach(c->nowTidHoldPages.add(c));
 
-        Set<Integer> TidsrequestPages = new HashSet<>();
-        TidsrequestPages.add(page);
-        if (nowTidHoldPages.contains(page)) {
-            return false;
+        Set<Integer> TidrequestPages = new HashSet<>();
+        Set<TransactionId> tids = new HashSet<>();
+        if (_pageHoldTids.containsKey(page)) {
+            tids.addAll(_pageHoldTids.get(page));
         }
-        return bfs(TidsrequestPages, nowTidHoldPages);
+
+        tids.stream()
+                .forEach(a->{
+                    if (_tidRequestPages.containsKey(a)) {
+                        TidrequestPages.addAll(_tidRequestPages.get(a));
+                    }
+                });
+
+        // if (nowTidHoldPages.contains(page)) {
+        //     return false;
+        // }
+        return bfs(TidrequestPages, nowTidHoldPages);
     }
 
     private boolean bfs(Set<Integer> TidsrequestPages, Set<Integer> nowTidHoldPages) {
         while (true) {
+
+            System.out.println("Thread : " + Thread.currentThread() + "bfs ==========================================================");
+            System.out.println("Thread : " + Thread.currentThread() + "TidsrequestPages");
+            TidsrequestPages.stream()
+                            .forEach(a->{
+                                System.out.print(a);
+                            });
+                            System.out.println();
+            System.out.println("Thread : " + Thread.currentThread() + "nowTidHoldPages");
+            nowTidHoldPages.stream()
+                            .forEach(a->{
+                                System.out.print(a);
+                            });
+            System.out.println();
+
             for(Integer rt : TidsrequestPages) {
                 for(Integer ntp : nowTidHoldPages) {
-                    if (rt == ntp) {
+                    if (rt.equals(ntp)) {
                         return true;
                     }
                 }
             }
+
 
             Set<TransactionId> tids = new HashSet<>();
             TidsrequestPages.stream()
@@ -180,6 +210,8 @@ class DetectDeadLock {
 
 
 class Lock extends ReentrantLock {
+    private volatile AtomicInteger acquireCount = new AtomicInteger(0);
+    private volatile AtomicInteger releaseCount = new AtomicInteger(0);
     private volatile boolean _isReadStage = true;
     private AtomicBoolean _isLock = new AtomicBoolean(false);
     private ConcurrentMap<TransactionId, Boolean> _acquireLockTids = new ConcurrentHashMap();
@@ -197,6 +229,7 @@ class Lock extends ReentrantLock {
         if (_isLock.compareAndSet(false, true)) {
             System.out.println("before locked !");
             super.lock();
+            acquireCount.getAndIncrement();
             System.out.println("locked !");
             _isReadStage = isReadStage;
             _acquireLockTids.put(tid, true);
@@ -234,11 +267,20 @@ class Lock extends ReentrantLock {
                     // }
 
                     if (!_acquireLockTids.get(tid)) {
-                        _acquireLockTids.remove(tid);
+                        System.out.println("Thread : " + Thread.currentThread() + "wait lock !" + "3333333333333333333333333333333333333333333333333333333333333333333");
+                        super.lock();
+                        acquireCount.getAndIncrement();
+                        if (_acquireLockTids.size() == 1) {
+                            super.unlock();
+                        }
+                    }
+
+                    if (_acquireLockTids.size() > 1) {
                         super.lock();
                     }
-                    // _acquireLockTids.put(tid, true);
+
                     _isReadStage = false;
+                    _acquireLockTids.put(tid, true);
                     _isLock.set(true);
                 } else {
                     return;
@@ -247,16 +289,19 @@ class Lock extends ReentrantLock {
                 _acquireLockTids.put(tid, false);
             }else if (!_isReadStage && isReadStage) {
                 super.lock();
+                acquireCount.getAndIncrement();
                 _isReadStage = true;
                 _acquireLockTids.put(tid, true);
                 _isLock.set(true);
             }else if (!_isReadStage && !isReadStage) {
                 super.lock();
+                acquireCount.getAndIncrement();
                 _isReadStage = false;
                 _acquireLockTids.put(tid, true);
                 _isLock.set(true);
             }else if (_isReadStage && !isReadStage) {
                 super.lock();
+                acquireCount.getAndIncrement();
                 _isReadStage = false;
                 _acquireLockTids.put(tid, true);
                 _isLock.set(true);
@@ -274,16 +319,12 @@ class Lock extends ReentrantLock {
         System.out.println();
         Boolean ac = _acquireLockTids.remove(tid);
         System.out.println(ac);
-        if (ac != null && _acquireLockTids.size() == 0) {
+        System.out.println("Thread : " + Thread.currentThread() +  "  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + "  releaseCount : " + releaseCount + "  acquireCount : " + acquireCount);
+        if (_acquireLockTids.size() == 0) {
             System.out.println("acsize = " + _acquireLockTids.size());
             _isLock.set(false);
-            
             super.unlock();
-            // try {
-            //     Thread.sleep((int)(Math.random() * 1000));
-            // } catch (Exception e) {
-            //     //TODO: handle exception
-            // }
+            releaseCount.getAndDecrement();
             System.out.println("unlock !" + "  Thread : " + Thread.currentThread());
             //randSleep();
         }

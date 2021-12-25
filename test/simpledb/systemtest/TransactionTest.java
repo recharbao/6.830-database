@@ -131,7 +131,8 @@ public class TransactionTest extends SimpleDbTestBase {
                         System.out.println("Thread : " + Thread.currentThread() + "   " + "here4 !");
                         q2.start();
                         //q2.next();
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + q2.next().toString());
+                        IntField d = (IntField)q2.next().getField(0);
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + d.getValue());
                         q2.close();
 
                         // set up a Set with a tuple that is one higher than the old one.
