@@ -101,23 +101,22 @@ public class TransactionTest extends SimpleDbTestBase {
                     Transaction tr = new Transaction();
                     try {
 
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
+                        //System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
                         tr.start();
                         SeqScan ss1 = new SeqScan(tr.getId(), tableId, "");
                         SeqScan ss2 = new SeqScan(tr.getId(), tableId, "");
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
+                        //System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
                         // read the value out of the table
                         Query q1 = new Query(ss1, tr.getId());
                         q1.start();
                         Tuple tup = q1.next();
                         IntField intf = (IntField) tup.getField(0);
                         int i = intf.getValue();
-                        System.out.println("&&&&&&&&&&&&&&&&&&Thread : " + Thread.currentThread() + " i =  " + i);
                         // create a Tuple so that Insert can insert this new value
                         // into the table.
                         Tuple t = new Tuple(SystemTestUtil.SINGLE_INT_DESCRIPTOR);
                         t.setField(0, new IntField(i+1));
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here3 !");
+    
                         // sleep to get some interesting thread interleavings
                         Thread.sleep(1);
 
@@ -128,11 +127,8 @@ public class TransactionTest extends SimpleDbTestBase {
                         Delete delOp = new Delete(tr.getId(), ss2);
 
                         Query q2 = new Query(delOp, tr.getId());
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here4 !");
                         q2.start();
-                        //q2.next();
-                        IntField d = (IntField)q2.next().getField(0);
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + d.getValue());
+                        q2.next();
                         q2.close();
 
                         // set up a Set with a tuple that is one higher than the old one.
@@ -140,14 +136,12 @@ public class TransactionTest extends SimpleDbTestBase {
                         hs.add(t);
                         TupleIterator ti = new TupleIterator(t.getTupleDesc(), hs);
 
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here5 !");
                         // insert this new tuple into the table
                         Insert insOp = new Insert(tr.getId(), ti, tableId);
                         Query q3 = new Query(insOp, tr.getId());
                         q3.start();
                         q3.next();
                         q3.close();
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here6 !");
 
                         tr.commit();
                         break;

@@ -176,9 +176,7 @@ public class BufferPool {
                     .filter(page -> (page.isDirty() != null && page.isDirty().equals(tid)))
                     .forEach(a-> {
                 try {
-                    System.out.println("a.getId() " + hashCode(a.getId().getTableId(), a.getId().getPageNumber()) + "tid = " + tid);
                     flushPage(a.getId());
-                    // discardPage(a.getId());
                     alreadyRelease.add(hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -203,7 +201,6 @@ public class BufferPool {
                 continue;
             }
             Page page = entry.getValue();
-            //System.out.println("page.getId() " + hashCode(page.getId().getTableId(), page.getId().getPageNumber()) + " tid = " + tid);
             unsafeReleasePage(tid, page.getId());
         }
     }

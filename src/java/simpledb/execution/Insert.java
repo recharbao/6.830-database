@@ -96,7 +96,7 @@ public class Insert extends Operator {
             count++;
             Tuple tuple = _child.next();
             try {
-                System.out.println("Thread : " + Thread.currentThread() + "begin insert 2222222222222222222222222222222222222222222222222222222");
+                // System.out.println("Thread : " + Thread.currentThread() + "begin insert 2222222222222222222222222222222222222222222222222222222");
                 Database.getBufferPool().insertTuple(_t, _tableId, tuple);
             } catch (IOException e) {
                 e.printStackTrace();

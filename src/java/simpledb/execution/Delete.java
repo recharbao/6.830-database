@@ -80,7 +80,7 @@ public class Delete extends Operator {
             count++;
             Tuple tuple = _child.next();
             try {
-                System.out.println("Thread : " + Thread.currentThread() + "begin delete ! 11111111111111111111111111111111111111111111111111111111111111111111");
+                //System.out.println("Thread : " + Thread.currentThread() + "begin delete ! 11111111111111111111111111111111111111111111111111111111111111111111");
                 Database.getBufferPool().deleteTuple(_t, tuple);
             } catch (IOException e) {
                 e.printStackTrace();
