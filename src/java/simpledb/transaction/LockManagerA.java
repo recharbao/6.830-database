@@ -178,7 +178,6 @@ class Lock extends ReentrantLock {
         if (_detectDeadLock.isDeadLock(_page, tid)) {
             throw new TransactionAbortedException();
         }
-
         System.out.println(Thread.currentThread() + " allow access lock " + "page : " + _page + " tid : " + tid);
         _detectDeadLock.addTidRequestPages(tid, _page);
         if (_isLock.compareAndSet(false, true)) {
@@ -204,12 +203,6 @@ class Lock extends ReentrantLock {
             }else if (_isReadStage && isReadStage) {
                 _acquireLockTids.put(tid, false);
             }else if (!_isReadStage && isReadStage) {
-                super.lock();
-                changeStatus(isReadStage, tid);
-            }else if (!_isReadStage && !isReadStage) {
-                super.lock();
-                changeStatus(isReadStage, tid);
-            }else if (_isReadStage && !isReadStage) {
                 super.lock();
                 changeStatus(isReadStage, tid);
             }
