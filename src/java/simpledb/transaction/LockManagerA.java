@@ -1,17 +1,13 @@
 package simpledb.transaction;
 
-import java.util.ArrayDeque;
 import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-import simpledb.common.DbException;
 
 public class LockManagerA {
 
@@ -31,41 +27,32 @@ public class LockManagerA {
     }
 
     public void acquireReadLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
-        if (_detectDeadLock.isDeadLock(page, tid)) {
-            throw new TransactionAbortedException();
-        }
-        _detectDeadLock.addTidRequestPages(tid, page);
-        makePageLock(tid, true, page);
+
+        System.out.println(Thread.currentThread() + " request readlock " + "page : " + page + " tid : " + tid);
+        makePageLock(page);
         _pageLock.get(page).lock(true, tid);
-        _detectDeadLock.deTidRequestPages(tid, page);
-        _detectDeadLock.addPageHoldTids(tid, page);
+        System.out.println(Thread.currentThread() + " acquire readlock " + "page : " + page + " tid : " + tid);
+
     }
 
     public void acquireWriteLock(Integer page, simpledb.transaction.TransactionId tid) throws TransactionAbortedException {
-        if (_detectDeadLock.isDeadLock(page, tid)) {
-            throw new TransactionAbortedException();
-        }
-        _detectDeadLock.addTidRequestPages(tid, page);
-        makePageLock(tid, false, page);
+        System.out.println(Thread.currentThread() + " request writelock " + "page : " + page + " tid : " + tid);
+        makePageLock(page);
         _pageLock.get(page).lock(false, tid);
-        _detectDeadLock.deTidRequestPages(tid, page);
-        _detectDeadLock.addPageHoldTids(tid, page);
+        System.out.println(Thread.currentThread() + " acquire writelock " + "page : " + page + " tid : " + tid);
     }
 
     public void releaseLock(Integer page, simpledb.transaction.TransactionId tid) {
         _pageLock.get(page).unLock(tid);
-        _detectDeadLock.dePageHoldTids(tid, page);
     }
 
-    private synchronized void makePageLock(TransactionId tid, boolean isReadStage, Integer page) {
+    private synchronized void makePageLock(Integer page) {
         if (!_pageLock.containsKey(page)) {
-            Lock lock = new Lock();
+            Lock lock = new Lock(page, _detectDeadLock);
             _pageLock.put(page, lock);
         }
     }
 }
-
-
 
 
 
@@ -113,7 +100,6 @@ class DetectDeadLock {
             _pageHoldTids.get(page).remove(tid);
         }
     }
-
 
     public synchronized boolean isDeadLock(Integer page, TransactionId tid) {
         Set<Integer> nowTidHoldPages = new HashSet<>();
@@ -176,43 +162,43 @@ class DetectDeadLock {
 }
 
 
-
-
-
-
-
 class Lock extends ReentrantLock {
-    private volatile AtomicInteger acquireCount = new AtomicInteger(0);
-    private volatile AtomicInteger releaseCount = new AtomicInteger(0);
     private volatile boolean _isReadStage = true;
     private AtomicBoolean _isLock = new AtomicBoolean(false);
     private ConcurrentMap<TransactionId, Boolean> _acquireLockTids = new ConcurrentHashMap();
+    private Integer _page;
+    DetectDeadLock _detectDeadLock;
 
-    public void lock(boolean isReadStage, TransactionId tid) {
-        
+    public Lock(Integer page, DetectDeadLock detectDeadLock) {
+        _page = page;
+        _detectDeadLock = detectDeadLock;
+    }
+
+    public synchronized void lock(boolean isReadStage, TransactionId tid) throws TransactionAbortedException {
+        if (_detectDeadLock.isDeadLock(_page, tid)) {
+            throw new TransactionAbortedException();
+        }
+
+        System.out.println(Thread.currentThread() + " allow access lock " + "page : " + _page + " tid : " + tid);
+        _detectDeadLock.addTidRequestPages(tid, _page);
         if (_isLock.compareAndSet(false, true)) {
             super.lock();
-            acquireCount.getAndIncrement();
             _isReadStage = isReadStage;
             _acquireLockTids.put(tid, true);
         }else {
             if (_acquireLockTids.containsKey(tid)) {
                 if (_isReadStage && !isReadStage) {
+                    System.out.println(Thread.currentThread() + " acquire upgrade " + "page : " + _page + " tid : " + tid);
                     if (!_acquireLockTids.get(tid)) {
                         super.lock();
-                        acquireCount.getAndIncrement();
                         if (_acquireLockTids.size() == 1) {
                             super.unlock();
                         }
                     }
-
                     if (_acquireLockTids.size() > 1) {
                         super.lock();
                     }
-
-                    _isReadStage = false;
-                    _acquireLockTids.put(tid, true);
-                    _isLock.set(true);
+                    changeStatus(isReadStage, tid);
                 } else {
                     return;
                 }
@@ -220,32 +206,31 @@ class Lock extends ReentrantLock {
                 _acquireLockTids.put(tid, false);
             }else if (!_isReadStage && isReadStage) {
                 super.lock();
-                acquireCount.getAndIncrement();
-                _isReadStage = true;
-                _acquireLockTids.put(tid, true);
-                _isLock.set(true);
+                changeStatus(isReadStage, tid);
             }else if (!_isReadStage && !isReadStage) {
                 super.lock();
-                acquireCount.getAndIncrement();
-                _isReadStage = false;
-                _acquireLockTids.put(tid, true);
-                _isLock.set(true);
+                changeStatus(isReadStage, tid);
             }else if (_isReadStage && !isReadStage) {
                 super.lock();
-                acquireCount.getAndIncrement();
-                _isReadStage = false;
-                _acquireLockTids.put(tid, true);
-                _isLock.set(true);
+                changeStatus(isReadStage, tid);
             }
         }
+
+        _detectDeadLock.deTidRequestPages(tid, _page);
+        _detectDeadLock.addPageHoldTids(tid, _page);
     }
 
-    public void unLock(TransactionId tid) {
-        _acquireLockTids.remove(tid);
-        if (_acquireLockTids.size() == 0) {
+    private synchronized void changeStatus(boolean isReadStage, TransactionId tid) {
+        _isReadStage = isReadStage;
+        _acquireLockTids.put(tid, true);
+        _isLock.set(true);
+    }
+
+    public synchronized void unLock(TransactionId tid) {
+        if (_acquireLockTids.remove(tid) != null && _acquireLockTids.size() == 0) {
             _isLock.set(false);
             super.unlock();
-            releaseCount.getAndDecrement();
         }
+        _detectDeadLock.dePageHoldTids(tid, _page);
     }
 }

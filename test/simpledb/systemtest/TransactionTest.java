@@ -69,7 +69,6 @@ public class TransactionTest extends SimpleDbTestBase {
             assert tester.completed;
         }
 
-        System.out.println("Thread : " + Thread.currentThread() + "   " + "here7 !");
         // Check that the table has the correct value
         TransactionId tid = new TransactionId();
         DbFileIterator it = table.iterator(tid);
@@ -215,11 +214,11 @@ public class TransactionTest extends SimpleDbTestBase {
         }
     }
 
-    //  @Test public void testSingleThread()
-    //          throws IOException, DbException, TransactionAbortedException {
-    //      System.out.println("testSingleThread !================");
-    //      validateTransactions(1);
-    //  }
+      @Test public void testSingleThread()
+              throws IOException, DbException, TransactionAbortedException {
+          System.out.println("testSingleThread !================");
+          validateTransactions(1);
+      }
 
     @Test public void testTwoThreads()
             throws IOException, DbException, TransactionAbortedException {
