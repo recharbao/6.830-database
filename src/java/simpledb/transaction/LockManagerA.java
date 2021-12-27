@@ -189,12 +189,6 @@ class Lock extends ReentrantLock {
                     System.out.println(Thread.currentThread() + " acquire upgrade " + "page : " + _page + " tid : " + tid);
                     if (!_acquireLockTids.get(tid)) {
                         super.lock();
-                        if (_acquireLockTids.size() == 1) {
-                            super.unlock();
-                        }
-                    }
-                    if (_acquireLockTids.size() > 1) {
-                        super.lock();
                     }
                     changeStatus(isReadStage, tid);
                 } else {
