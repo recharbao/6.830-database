@@ -182,9 +182,7 @@ class Lock extends ReentrantLock {
         System.out.println(Thread.currentThread() + " allow access lock " + "page : " + _page + " tid : " + tid);
         _detectDeadLock.addTidRequestPages(tid, _page);
         if (_isLock.compareAndSet(false, true)) {
-            super.lock();
-            _isReadStage = isReadStage;
-            _acquireLockTids.put(tid, true);
+            changeStatus(isReadStage, tid);
         }else {
             if (_acquireLockTids.containsKey(tid)) {
                 if (_isReadStage && !isReadStage) {
