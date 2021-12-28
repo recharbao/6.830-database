@@ -100,7 +100,7 @@ public class TransactionTest extends SimpleDbTestBase {
                     Transaction tr = new Transaction();
                     try {
 
-                        //System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
                         tr.start();
                         SeqScan ss1 = new SeqScan(tr.getId(), tableId, "");
                         SeqScan ss2 = new SeqScan(tr.getId(), tableId, "");
@@ -145,6 +145,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         tr.commit();
                         break;
                     } catch (TransactionAbortedException te) {
+                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
                         //System.out.println("thread " + tr.getId() + " killed");
                         // give someone else a chance: abort the transaction
                         tr.transactionComplete(true);
@@ -225,36 +226,36 @@ public class TransactionTest extends SimpleDbTestBase {
         validateTransactions(2);
     }
 
-    //  @Test public void testFiveThreads()
-    //          throws IOException, DbException, TransactionAbortedException {
-    //      validateTransactions(5);
-    //  }
+      @Test public void testFiveThreads()
+              throws IOException, DbException, TransactionAbortedException {
+          validateTransactions(5);
+      }
 
-    //  @Test public void testTenThreads()
-    //  throws IOException, DbException, TransactionAbortedException {
-    //      validateTransactions(10);
-    //  }
+      @Test public void testTenThreads()
+      throws IOException, DbException, TransactionAbortedException {
+          validateTransactions(10);
+      }
 
-    //  @Test public void testAllDirtyFails()
-    //          throws IOException, DbException, TransactionAbortedException {
-    //      // Allocate a file with ~10 pages of data
-    //      HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
-    //      Database.resetBufferPool(1);
+      @Test public void testAllDirtyFails()
+              throws IOException, DbException, TransactionAbortedException {
+          // Allocate a file with ~10 pages of data
+          HeapFile f = SystemTestUtil.createRandomHeapFile(2, 512*10, null, null);
+          Database.resetBufferPool(1);
 
-    //      // BEGIN TRANSACTION
-    //      Transaction t = new Transaction();
-    //      t.start();
+          // BEGIN TRANSACTION
+          Transaction t = new Transaction();
+          t.start();
 
-    //      // Insert a new row
-    //      AbortEvictionTest.insertRow(f, t);
+          // Insert a new row
+          AbortEvictionTest.insertRow(f, t);
 
-    //      // Scanning the table must fail because it can't evict the dirty page
-    //      try {
-    //          AbortEvictionTest.findMagicTuple(f, t);
-    //          fail("Expected scan to run out of available buffer pages");
-    //      } catch (DbException ignored) {}
-    //      t.commit();
-    //  }
+          // Scanning the table must fail because it can't evict the dirty page
+          try {
+              AbortEvictionTest.findMagicTuple(f, t);
+              fail("Expected scan to run out of available buffer pages");
+          } catch (DbException ignored) {}
+          t.commit();
+      }
 
     /** Make test compatible with older version of ant. */
     public static junit.framework.Test suite() {
