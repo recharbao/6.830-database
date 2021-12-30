@@ -100,7 +100,7 @@ public class TransactionTest extends SimpleDbTestBase {
                     Transaction tr = new Transaction();
                     try {
 
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
+                        // System.out.println("Thread : " + Thread.currentThread() + "   " + "here1 !");
                         tr.start();
                         SeqScan ss1 = new SeqScan(tr.getId(), tableId, "");
                         SeqScan ss2 = new SeqScan(tr.getId(), tableId, "");
@@ -145,7 +145,7 @@ public class TransactionTest extends SimpleDbTestBase {
                         tr.commit();
                         break;
                     } catch (TransactionAbortedException te) {
-                        System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
+                        // System.out.println("Thread : " + Thread.currentThread() + "   " + "here2 !");
                         //System.out.println("thread " + tr.getId() + " killed");
                         // give someone else a chance: abort the transaction
                         tr.transactionComplete(true);
@@ -217,7 +217,6 @@ public class TransactionTest extends SimpleDbTestBase {
 
       @Test public void testSingleThread()
               throws IOException, DbException, TransactionAbortedException {
-          System.out.println("testSingleThread !================");
           validateTransactions(1);
       }
 

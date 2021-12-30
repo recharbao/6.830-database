@@ -168,7 +168,7 @@ public class BufferPool {
         // not necessary for lab1|lab2
         //System.out.println("transactionComplete !");
 
-        System.out.println(Thread.currentThread() + " complete before !");
+        // System.out.println(Thread.currentThread() + " complete before !");
         Set<Integer> alreadyRelease = new HashSet<>();
 
         if (commit) {
@@ -205,7 +205,7 @@ public class BufferPool {
             unsafeReleasePage(tid, page.getId());
         }
 
-        System.out.println(Thread.currentThread() + " complete after !");
+        // System.out.println(Thread.currentThread() + " complete after !");
     }
 
     /**
