@@ -6,6 +6,7 @@ import java.util.*;
 import simpledb.common.Database;
 import simpledb.common.Permissions;
 import simpledb.execution.IndexPredicate;
+import simpledb.execution.Predicate;
 import simpledb.execution.Predicate.Op;
 import simpledb.common.DbException;
 import simpledb.common.Debug;
@@ -188,7 +189,29 @@ public class BTreeFile implements DbFile {
                                        Field f)
 					throws DbException, TransactionAbortedException {
 		// some code goes here
-        return null;
+		if (pid.pgcateg() == BTreePageId.LEAF) {
+			return (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
+		}
+
+		BTreeInternalPage bTreeInternalPage = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+
+		Iterator<BTreeEntry> iterator = bTreeInternalPage.iterator();
+		BTreeEntry bTreeEntry = null;
+		while (iterator.hasNext()) {
+			bTreeEntry = iterator.next();
+			if (f != null && f.compare(Predicate.Op.GREATER_THAN, bTreeEntry.getKey())) {
+				continue;
+			} 
+			
+			BTreeLeafPage bTreeLeafPage = findLeafPage(tid, dirtypages, bTreeEntry.getLeftChild(), perm, f);
+			if (f != null && bTreeLeafPage == null) {
+				bTreeLeafPage = findLeafPage(tid, dirtypages, bTreeEntry.getRightChild(), perm, f);
+			}
+
+			return bTreeLeafPage;
+		}
+
+        return (BTreeLeafPage) getPage(tid, dirtypages, bTreeEntry.getRightChild(), perm);
 	}
 	
 	/**
@@ -1082,6 +1105,7 @@ class BTreeFileIterator extends AbstractDbFileIterator {
 	public void open() throws DbException, TransactionAbortedException {
 		BTreeRootPtrPage rootPtr = (BTreeRootPtrPage) Database.getBufferPool().getPage(
 				tid, BTreeRootPtrPage.getId(f.getId()), Permissions.READ_ONLY);
+		// rootPtr.setRootId(BTreeRootPtrPage.getId(f.getId()));
 		BTreePageId root = rootPtr.getRootId();
 		curp = f.findLeafPage(tid, root, null);
 		it = curp.iterator();
