@@ -262,8 +262,30 @@ public class BTreeFile implements DbFile {
 		// the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
 		// the sibling pointers of all the affected leaf pages.  Return the page into which a 
 		// tuple with the given key field should be inserted.
+
+		BTreeLeafPage newLeafPage = (BTreeLeafPage) getEmptyPage(tid, dirtypages, BTreePageId.LEAF);
+		int halfCount = (page.getNumTuples() + 1) / 2;
+		Tuple midTuple = null;
+
+		Iterator<Tuple> iterator = page.reverseIterator();
+		while (halfCount-- > 0 && iterator.hasNext()) {
+			Tuple tuple = iterator.next();
+			newLeafPage.insertTuple(tuple);
+			page.deleteTuple(tuple);
+			if (halfCount == 0) {
+				midTuple = tuple;
+			}
+		}
+
+
+		BTreeInternalPage parentPage = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
+		parentPage.insertEntry(new BTreeEntry(midTuple.getField(keyField), page.getId(), newLeafPage.getId()));
+		updateParentPointer(tid, dirtypages, parentPage.getId(), page.getId());
+		updateParentPointer(tid, dirtypages, parentPage.getId(), newLeafPage.getId());
+		newLeafPage.setRightSiblingId(page.getRightSiblingId());
+		page.setRightSiblingId(newLeafPage.getId());
+		newLeafPage.setLeftSiblingId(page.getId());
         return null;
-		
 	}
 	
 	/**
@@ -300,6 +322,24 @@ public class BTreeFile implements DbFile {
 		// the parent pointers of all the children moving to the new page.  updateParentPointers()
 		// will be useful here.  Return the page into which an entry with the given key field
 		// should be inserted.
+
+		BTreeInternalPage newInternalPage = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
+
+		int halfCount = page.getNumEntries() / 2;
+		Iterator<BTreeEntry> iterator = page.reverseIterator();
+		while (halfCount-- > 0 && iterator.hasNext()) {
+			BTreeEntry bTreeEntry = iterator.next();
+			newInternalPage.insertEntry(bTreeEntry);
+			page.deleteKeyAndRightChild(bTreeEntry);
+			page.deleteKeyAndLeftChild(bTreeEntry);
+		}
+
+		BTreeInternalPage parentPage = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
+
+		BTreeEntry bTreeEntry = iterator.next();
+		parentPage.insertEntry(bTreeEntry);
+		bTreeEntry.setLeftChild(page.getId());
+		bTreeEntry.setRightChild(newInternalPage.getId());
 		return null;
 	}
 	
