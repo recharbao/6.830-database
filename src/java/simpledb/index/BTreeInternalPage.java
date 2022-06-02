@@ -30,6 +30,10 @@ public class BTreeInternalPage extends BTreePage {
 	
 	private int childCategory; // either leaf or internal
 
+	public int getChildCategory() {
+		return childCategory;
+	}
+
 	public void checkRep(Field lowerBound, Field upperBound, boolean checkOccupancy, int depth) {
 		Field prev = lowerBound;
 		assert(this.getId().pgcateg() == BTreePageId.INTERNAL);
@@ -42,6 +46,8 @@ public class BTreeInternalPage extends BTreePage {
 		}
 
         assert null == upperBound || null == prev || (prev.compare(Op.LESS_THAN_OR_EQ, upperBound));
+
+		System.out.println("getNumEntries: " + getNumEntries() + " " + "getMaxEntries: " + getMaxEntries());
 
         assert !checkOccupancy || depth <= 0 || (getNumEntries() >= getMaxEntries() / 2);
 	}
