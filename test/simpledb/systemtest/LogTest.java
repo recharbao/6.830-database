@@ -52,6 +52,7 @@ public class LogTest extends SimpleDbTestBase {
         SeqScan scan = new SeqScan(t.getId(), hf.getId(), "");
         scan.open();
         while(scan.hasNext()){
+            System.out.println("sss");
             Tuple tu = scan.next();
             int x = ((IntField)tu.getField(0)).getValue();
             if(x == v1)
@@ -214,6 +215,7 @@ public class LogTest extends SimpleDbTestBase {
         look(hf1, t, 1, true);
         look(hf1, t, 2, true);
         look(hf1, t, 3, false);
+        
         look(hf1, t, 4, false);
         t.commit();
     }

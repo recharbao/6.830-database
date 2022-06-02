@@ -169,6 +169,8 @@ public class BufferPool {
         //System.out.println("transactionComplete !");
 
         // System.out.println(Thread.currentThread() + " complete before !");
+
+
         Set<Integer> alreadyRelease = new HashSet<>();
 
         if (commit) {
@@ -178,6 +180,7 @@ public class BufferPool {
                     .forEach(a-> {
                 try {
                     flushPage(a.getId());
+                    a.setBeforeImage();
                     alreadyRelease.add(hashCode(a.getId().getTableId(), a.getId().getPageNumber()));
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -275,6 +278,7 @@ public class BufferPool {
         // not necessary for lab1
         for (Map.Entry<Integer, Page> entry : _map.entrySet()) {
             flushPage(entry.getValue().getId());
+            // entry.getValue().setBeforeImage();
         }
     }
 
@@ -299,11 +303,24 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        // Page page = _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
+        // page.markDirty(false, _tid);
+        // DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        // hf.writePage(page);
+        // Database.getBufferPool().unsafeReleasePage(_tid, pid);
+
         Page page = _map.get(hashCode(pid.getTableId(), pid.getPageNumber()));
+        TransactionId dirtier = page.isDirty();
+        if (dirtier != null){
+            Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+            Database.getLogFile().force();
+        }
+
         page.markDirty(false, _tid);
         DbFile hf = Database.getCatalog().getDatabaseFile(pid.getTableId());
         hf.writePage(page);
         Database.getBufferPool().unsafeReleasePage(_tid, pid);
+
     }
 
     /** Write all pages of the specified transaction to disk.
